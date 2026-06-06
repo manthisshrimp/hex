@@ -1,0 +1,91 @@
+/* Desktop Layout - 3-column grid */
+.desktop-layout {
+  display: grid;
+  grid-template-columns: auto 340px 1fr;
+  height: 100vh;
+  width: 100vw;
+  gap: 0;
+  box-sizing: border-box;
+}
+
+/* Year Panel */
+.year-panel {
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+}
+
+.year-panel-settings {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.btn-settings {
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-settings:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.btn-settings.active {
+  background: var(--color-primary-dim);
+  color: var(--color-primary);
+}
+
+/* Days Panel */
+.days-panel {
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.days-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* Detail Panel */
+.detail-panel {
+  background: var(--color-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scroll highlight effect */
+.scroll-highlight {
+  animation: scrollHighlight 0.5s ease-out;
+}
+
+@media (max-width: 1024px) {
+  .desktop-layout {
+    grid-template-columns: auto 260px 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .desktop-layout {
+    display: none;
+  }
+}

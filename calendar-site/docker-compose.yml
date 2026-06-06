@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: calendar-backend
+    ports:
+      - "3006:3000"
+    volumes:
+      - ./backend-rust/data:/data
+    environment:
+      - PORT=3000
+      - DATA_PATH=/data
+      - RUST_LOG=debug
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.frontend
+    container_name: calendar-frontend
+    ports:
+      - "5176:5176"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/dist
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    command: npm run dev

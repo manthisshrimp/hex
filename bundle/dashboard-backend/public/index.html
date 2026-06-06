@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Octiron</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#7c8cf8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Octiron">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Login ─────────────────────────────────────────────────────── */
+    #login-page {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .login-card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 14px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 360px;
+    }
+    .login-logo {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #7c8cf8;
+      letter-spacing: -0.02em;
+    }
+    .login-sub {
+      color: #64748b;
+      font-size: 0.875rem;
+      margin: 0.25rem 0 2rem;
+    }
+
+    /* ── Inputs ────────────────────────────────────────────────────── */
+    input[type="password"],
+    input[type="text"] {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: #0f1117;
+      border: 1px solid #2d3148;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.9375rem;
+      margin-bottom: 0.75rem;
+      transition: border-color 0.15s;
+    }
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #7c8cf8;
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9375rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn:not(:disabled):hover { opacity: 0.85; }
+    .btn-primary { background: #7c8cf8; color: #fff; width: 100%; }
+    .btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; width: auto; }
+    .btn-ghost {
+      background: #1e2235;
+      color: #94a3b8;
+      border: 1px solid #2d3148;
+    }
+
+    /* ── Messages ──────────────────────────────────────────────────── */
+    .msg { font-size: 0.875rem; margin-top: 0.75rem; min-height: 1.2em; }
+    .msg.error  { color: #f87171; }
+    .msg.success { color: #4ade80; }
+
+    /* ── Spinner ───────────────────────────────────────────────────── */
+    .spinner {
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Dashboard layout ──────────────────────────────────────────── */
+    #dashboard { display: none; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.125rem 2rem;
+      background: #1a1d27;
+      border-bottom: 1px solid #2d3148;
+    }
+    .header-logo {
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: #7c8cf8;
+      letter-spacing: -0.02em;
+    }
+
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .section { margin-bottom: 2.5rem; }
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1rem;
+    }
+
+    /* ── App cards ─────────────────────────────────────────────────── */
+    .app-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.875rem;
+    }
+    .app-card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.125rem 1.25rem;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .app-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .app-name {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 0.25rem;
+    }
+    .app-desc {
+      font-size: 0.8125rem;
+      color: #64748b;
+      line-height: 1.45;
+    }
+
+    /* ── Settings / Backup cards ───────────────────────────────────── */
+    .settings-card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 10px;
+      padding: 1.5rem;
+      max-width: 400px;
+    }
+    .settings-card .btn-primary {
+      width: auto;
+      margin-top: 0.25rem;
+    }
+    .backup-card {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 10px;
+      padding: 1.5rem;
+      max-width: 560px;
+    }
+    .backup-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .backup-status {
+      font-size: 0.8125rem;
+      color: #64748b;
+    }
+    .backup-status strong { color: #e2e8f0; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-green { background: rgba(74,222,128,0.12); color: #4ade80; }
+    .backup-list { margin-top: 1rem; }
+    .backup-list-title {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+    .backup-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-top: 1px solid #1e2235;
+      font-size: 0.8125rem;
+    }
+    .backup-row-date { color: #e2e8f0; }
+    .backup-row-size { color: #64748b; margin: 0 1rem; }
+    .btn-link {
+      background: none;
+      border: none;
+      color: #7c8cf8;
+      font-size: 0.8125rem;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .btn-link:hover { opacity: 0.75; }
+
+    /* ── Restore modal ─────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #1a1d27;
+      border: 1px solid #2d3148;
+      border-radius: 12px;
+      padding: 1.75rem;
+      max-width: 420px;
+      width: 100%;
+    }
+    .modal-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 1rem;
+    }
+    .modal-warning {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      font-size: 0.875rem;
+      color: #fca5a5;
+      line-height: 1.45;
+    }
+    .modal-label {
+      font-size: 0.8125rem;
+      color: #64748b;
+      margin-bottom: 0.25rem;
+    }
+    .modal-backup-time {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 1.25rem;
+    }
+    .modal-note {
+      font-size: 0.8125rem;
+      color: #64748b;
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+    .modal-confirm-label {
+      font-size: 0.875rem;
+      color: #e2e8f0;
+      margin-bottom: 0.5rem;
+    }
+    .modal-confirm-label code {
+      background: #0f1117;
+      padding: 0.1em 0.4em;
+      border-radius: 4px;
+      font-size: 0.875em;
+      color: #7c8cf8;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+      justify-content: flex-end;
+    }
+    .btn-danger {
+      background: #ef4444;
+      color: #fff;
+      width: auto;
+    }
+    .btn-danger:not(:disabled):hover { opacity: 0.85; }
+    .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+
+<!-- ── Login screen ────────────────────────────────────────────────────── -->
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">Octiron</div>
+    <div class="login-sub">Personal apps dashboard</div>
+    <form id="login-form">
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit" class="btn btn-primary" id="login-btn">Sign in</button>
+      <div class="msg error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Dashboard ───────────────────────────────────────────────────────── -->
+<div id="dashboard">
+  <header>
+    <span class="header-logo">Octiron</span>
+    <button class="btn btn-ghost btn-sm" id="logout-btn">Sign out</button>
+  </header>
+  <main>
+
+    <div class="section">
+      <div class="section-title">Apps</div>
+      <div class="app-grid">
+        <a class="app-card" href="/calendar/"  style="--accent:#4A9EFF">
+          <div class="app-name">Calendar</div>
+          <div class="app-desc">Week-first calendar planning</div>
+        </a>
+        <a class="app-card" href="/expenses/"  style="--accent:#34C759">
+          <div class="app-name">Expenses</div>
+          <div class="app-desc">Monthly expense tracking</div>
+        </a>
+        <a class="app-card" href="/inventory/" style="--accent:#AF52DE">
+          <div class="app-name">Inventory</div>
+          <div class="app-desc">Personal inventory tracker</div>
+        </a>
+        <a class="app-card" href="/habits/"    style="--accent:#FF9500">
+          <div class="app-name">Habits</div>
+          <div class="app-desc">Habit tracking RPG</div>
+        </a>
+        <a class="app-card" href="/todo/"      style="--accent:#5AC8FA">
+          <div class="app-name">Task Board</div>
+          <div class="app-desc">Multi-user task board</div>
+        </a>
+        <a class="app-card" href="/mood/"      style="--accent:#FF375F">
+          <div class="app-name">Mood Tracker</div>
+          <div class="app-desc">Mood logging</div>
+        </a>
+      </div>
+    </div>
+
+    <div class="section" id="backup-section" style="display:none">
+      <div class="section-title">Backups</div>
+      <div class="backup-card">
+        <div class="backup-meta">
+          <div class="backup-status">
+            Last backup: <strong id="backup-last">—</strong>
+            <span class="badge badge-green" style="margin-left:0.5rem">&#10003; Nightly at 2am</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" id="backup-now-btn">Back up now</button>
+        </div>
+        <div class="msg" id="backup-msg"></div>
+        <div class="backup-list" id="backup-list" style="display:none">
+          <div class="backup-list-title">Recent backups</div>
+          <div id="backup-rows"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Settings</div>
+      <div class="settings-card">
+        <form id="change-password-form">
+          <input type="password" id="cp-current"  placeholder="Current password" required>
+          <input type="password" id="cp-new"      placeholder="New password (8+ chars)" required>
+          <input type="password" id="cp-confirm"  placeholder="Confirm new password" required>
+          <button type="submit" class="btn btn-primary" id="cp-btn">Change password</button>
+          <div class="msg" id="cp-msg"></div>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Restore modal ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="restore-modal">
+  <div class="modal">
+    <div class="modal-title">Restore backup</div>
+    <div class="modal-warning">
+      This will permanently replace <strong>all</strong> your current data with the selected backup.
+      Any changes made after this backup was taken will be lost.
+    </div>
+    <div class="modal-label">Restoring from:</div>
+    <div class="modal-backup-time" id="restore-modal-date">—</div>
+    <div class="modal-note">
+      Your current data will be backed up automatically before the restore begins,
+      so you can recover it if needed. This may take up to a minute.
+    </div>
+    <div class="modal-confirm-label">Type <code>restore</code> to confirm:</div>
+    <input type="text" id="restore-confirm-input" placeholder="restore" autocomplete="off" spellcheck="false">
+    <div class="msg" id="restore-msg"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="restore-cancel-btn">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="restore-confirm-btn" disabled>Restore data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+
+  const TOKEN_KEY = 'octiron_token';
+  const get = id => document.getElementById(id);
+
+  const getToken  = ()    => localStorage.getItem(TOKEN_KEY);
+  const setToken  = tok   => localStorage.setItem(TOKEN_KEY, tok);
+  const clearToken = ()   => localStorage.removeItem(TOKEN_KEY);
+
+  function authHeaders() {
+    const t = getToken();
+    return t ? { 'X-Admin-Token': t, 'Content-Type': 'application/json' }
+             : { 'Content-Type': 'application/json' };
+  }
+
+  function showDashboard() {
+    get('login-page').style.display = 'none';
+    get('dashboard').style.display  = 'block';
+  }
+
+  function showLogin() {
+    get('login-page').style.display = 'flex';
+    get('dashboard').style.display  = 'none';
+    get('login-error').textContent  = '';
+  }
+
+  // ── Boot: validate stored token ──────────────────────────────────────────
+  (async () => {
+    if (!getToken()) return showLogin();
+    try {
+      const r = await fetch('api/me', { headers: authHeaders() });
+      if (r.ok) { showDashboard(); loadBackupStatus(); }
+      else { clearToken(); showLogin(); }
+    } catch {
+      showLogin();
+    }
+  })();
+
+  // ── Backup ───────────────────────────────────────────────────────────────
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function fmtDate(iso) {
+    return new Date(iso).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  // ── Restore modal ────────────────────────────────────────────────────────
+  let currentBackups = [];
+  let pendingRestoreKey = null;
+
+  function openRestoreModal(index) {
+    const b = currentBackups[index];
+    pendingRestoreKey = b.key;
+    get('restore-modal-date').textContent = fmtDate(b.date);
+    get('restore-confirm-input').value = '';
+    get('restore-confirm-btn').disabled = true;
+    get('restore-msg').className = 'msg';
+    get('restore-msg').textContent = '';
+    get('restore-cancel-btn').disabled = false;
+    get('restore-confirm-btn').textContent = 'Restore data';
+    get('restore-modal').classList.add('open');
+    setTimeout(() => get('restore-confirm-input').focus(), 50);
+  }
+
+  function closeRestoreModal() {
+    get('restore-modal').classList.remove('open');
+    pendingRestoreKey = null;
+  }
+
+  get('restore-confirm-input').addEventListener('input', e => {
+    get('restore-confirm-btn').disabled = e.target.value.trim() !== 'restore';
+  });
+
+  get('restore-cancel-btn').addEventListener('click', closeRestoreModal);
+
+  get('restore-modal').addEventListener('click', e => {
+    if (e.target === get('restore-modal')) closeRestoreModal();
+  });
+
+  get('restore-confirm-btn').addEventListener('click', async () => {
+    if (!pendingRestoreKey) return;
+    const btn       = get('restore-confirm-btn');
+    const cancelBtn = get('restore-cancel-btn');
+    const input     = get('restore-confirm-input');
+    const msgEl     = get('restore-msg');
+
+    btn.disabled = true;
+    cancelBtn.disabled = true;
+    input.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Restoring…';
+    msgEl.className = 'msg';
+    msgEl.textContent = 'Creating pre-restore backup…';
+
+    try {
+      const r    = await fetch('api/backup/restore', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ key: pendingRestoreKey }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        msgEl.className = 'msg error';
+        msgEl.textContent = data.error || 'Restore failed';
+        btn.disabled = false;
+        cancelBtn.disabled = false;
+        input.disabled = false;
+        btn.textContent = 'Restore data';
+      } else {
+        msgEl.className = 'msg success';
+        msgEl.textContent = data.message;
+        setTimeout(() => { closeRestoreModal(); loadBackupStatus(); }, 1800);
+      }
+    } catch {
+      msgEl.className = 'msg error';
+      msgEl.textContent = 'Network error';
+      btn.disabled = false;
+      cancelBtn.disabled = false;
+      input.disabled = false;
+      btn.textContent = 'Restore data';
+    }
+  });
+
+  async function loadBackupStatus() {
+    try {
+      const r = await fetch('api/backup/status', { headers: authHeaders() });
+      if (!r.ok) return;
+      const data = await r.json();
+      if (!data.configured) return;
+
+      get('backup-section').style.display = 'block';
+
+      if (data.backups && data.backups.length > 0) {
+        currentBackups = data.backups;
+        get('backup-last').textContent = fmtDate(data.backups[0].date);
+        renderBackupList(data.backups);
+      } else {
+        get('backup-last').textContent = 'Never';
+      }
+    } catch {}
+  }
+
+  function renderBackupList(backups) {
+    const rows = get('backup-rows');
+    rows.innerHTML = backups.map((b, i) => `
+      <div class="backup-row">
+        <span class="backup-row-date">${fmtDate(b.date)}</span>
+        <span class="backup-row-size">${fmtSize(b.size)}</span>
+        <span style="white-space:nowrap">
+          <button class="btn-link" onclick="downloadBackup('${encodeURIComponent(b.key)}')">Download</button>
+          &nbsp;&middot;&nbsp;
+          <button class="btn-link" style="color:#f87171" onclick="openRestoreModal(${i})">Restore</button>
+        </span>
+      </div>`).join('');
+    get('backup-list').style.display = 'block';
+  }
+
+  function downloadBackup(encodedKey) {
+    const a = document.createElement('a');
+    a.href = `api/backup/download/${encodedKey}`;
+    a.setAttribute('download', '');
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  get('backup-now-btn').addEventListener('click', async () => {
+    const btn   = get('backup-now-btn');
+    const msgEl = get('backup-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+    msgEl.className = 'msg';
+    msgEl.textContent = '';
+
+    try {
+      const r    = await fetch('api/backup/now', { method: 'POST', headers: authHeaders() });
+      const data = await r.json();
+      if (!r.ok) {
+        msgEl.className = 'msg error';
+        msgEl.textContent = data.error || 'Backup failed';
+      } else {
+        msgEl.className = 'msg success';
+        msgEl.textContent = 'Backup complete';
+        loadBackupStatus();
+      }
+    } catch {
+      msgEl.className = 'msg error';
+      msgEl.textContent = 'Network error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Back up now';
+    }
+  });
+
+  // ── Login ────────────────────────────────────────────────────────────────
+  get('login-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const password = get('login-password').value;
+    const errEl    = get('login-error');
+    const btn      = get('login-btn');
+    errEl.textContent = '';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>';
+
+    try {
+      const r    = await fetch('api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        errEl.textContent = data.error || 'Login failed';
+      } else {
+        setToken(data.token);
+        showDashboard();
+        loadBackupStatus();
+      }
+    } catch {
+      errEl.textContent = 'Network error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  });
+
+  // ── Logout ───────────────────────────────────────────────────────────────
+  get('logout-btn').addEventListener('click', () => {
+    clearToken();
+    showLogin();
+  });
+
+  // ── Change password ──────────────────────────────────────────────────────
+  get('change-password-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const currentPassword = get('cp-current').value;
+    const newPassword     = get('cp-new').value;
+    const confirmPassword = get('cp-confirm').value;
+    const msgEl = get('cp-msg');
+    const btn   = get('cp-btn');
+
+    msgEl.className = 'msg';
+    msgEl.textContent = '';
+
+    if (newPassword !== confirmPassword) {
+      msgEl.className = 'msg error';
+      msgEl.textContent = 'Passwords do not match';
+      return;
+    }
+    if (newPassword.length < 8) {
+      msgEl.className = 'msg error';
+      msgEl.textContent = 'New password must be at least 8 characters';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Updating…';
+
+    try {
+      const r    = await fetch('api/change-password', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        msgEl.className = 'msg error';
+        msgEl.textContent = data.error || 'Failed to change password';
+      } else {
+        setToken(data.token);
+        msgEl.className = 'msg success';
+        msgEl.textContent = data.message || 'Password changed successfully';
+        get('change-password-form').reset();
+      }
+    } catch {
+      msgEl.className = 'msg error';
+      msgEl.textContent = 'Network error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Change password';
+    }
+  });
+</script>
+</body>
+</html>

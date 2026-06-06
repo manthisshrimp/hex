@@ -1,0 +1,44 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.backend
+    container_name: inventory-backend
+    ports:
+      - "3003:3000"
+    environment:
+      - PORT=3000
+      - DATA_PATH=/data
+      - RUST_LOG=info
+      - HOME=/root
+    volumes:
+      - ./backend-rust:/app/backend-rust
+      - inventory-data:/data
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.frontend
+    container_name: inventory-frontend
+    ports:
+      - "5177:5177"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - inventory-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    command: npm run dev
+
+volumes:
+  inventory-data:
+    driver: local
+
+networks:
+  inventory-network:
+    driver: bridge

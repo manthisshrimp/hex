@@ -1,0 +1,196 @@
+.year-minimap {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+}
+
+/* Year boundary — fixed height, not flex: 1 */
+.minimap-year-boundary {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  height: 14px;
+  background: transparent;
+  border-top: 1px solid var(--color-border);
+  padding: 0 4px;
+}
+
+.minimap-year-boundary::before,
+.minimap-year-boundary::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.minimap-year-boundary span {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+/* Week rows share height equally; width grows to fit label + 7 square cells */
+.minimap-week-row {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+.minimap-week-row.month-boundary {
+  border-top: 1px solid var(--color-border);
+}
+
+.minimap-week-row.scrolled-week {
+  position: relative;
+}
+
+.minimap-week-row.scrolled-week::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  outline: 1px solid var(--color-text-muted);
+  outline-offset: -1px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.minimap-label {
+  font-size: 8px;
+  font-family: monospace;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 3px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.minimap-label:hover { color: var(--color-text); }
+
+.minimap-week-row.current-week .minimap-label {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+/* 7-day strip — width comes from the square cells, not from stretching */
+.minimap-days {
+  display: flex;
+}
+
+.minimap-day {
+  flex: 1;
+  aspect-ratio: 1 / 1;
+  cursor: pointer;
+  transition: filter 0.1s;
+  position: relative;
+}
+
+.minimap-day:hover { filter: brightness(1.3); }
+
+/* Non-working day chain stripe — runs through horizontal center */
+.chain-stripe {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.chain-stripe--start  { left: 50%; right: 0; }
+.chain-stripe--middle { left: 0;   right: 0; }
+.chain-stripe--end    { left: 0;   right: 50%; }
+
+/* Termination dot at the open end of start/end stripes */
+.chain-stripe--start::before,
+.chain-stripe--end::before {
+  content: '';
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: inherit;
+  top: 50%;
+}
+
+.chain-stripe--start::before { left: 0;   transform: translate(-50%, -50%); }
+.chain-stripe--end::before   { right: 0;  transform: translate(50%, -50%); }
+
+/* Selected day — primary colored dot */
+.minimap-day.is-selected::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Today indicator — today-color dot, takes precedence over selected */
+.minimap-day.is-today::after {
+  content: '';
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--color-today);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Current week row marker — left bar, always visible */
+.minimap-week-row.current-week {
+  box-shadow: inset 2px 0 0 var(--color-today);
+}
+
+.minimap-tooltip {
+  position: fixed;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 5px 9px;
+  border-radius: 5px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.minimap-tooltip-date {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.minimap-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.minimap-tooltip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

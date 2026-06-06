@@ -1,0 +1,317 @@
+.cat-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.cat-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  flex-shrink: 0;
+}
+
+.cat-manager-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.cat-manager-close {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: background 0.15s;
+}
+
+.cat-manager-close:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.cat-manager-add-row {
+  padding: 10px 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.btn-cat-add {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.btn-cat-add:hover { background: var(--color-primary-hover); }
+
+.cat-form {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
+  background: var(--color-surface-2);
+}
+
+.cat-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cat-form-input {
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.cat-form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(124, 106, 247, 0.2);
+}
+
+.cat-form-input--inline { flex: 1; }
+
+.cat-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-cat-save {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+  transition: background 0.15s;
+}
+
+.btn-cat-save:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-cat-save:disabled { opacity: 0.5; cursor: default; }
+.btn-cat-save--sm { padding: 5px 10px; font-size: 0.8rem; flex: unset; }
+
+.btn-cat-cancel {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 1;
+  transition: background 0.15s;
+}
+
+.btn-cat-cancel:hover:not(:disabled) { background: var(--color-border); color: var(--color-text); }
+.btn-cat-cancel:disabled { opacity: 0.5; cursor: default; }
+.btn-cat-cancel--sm { padding: 5px 10px; font-size: 0.8rem; flex: unset; }
+
+.cat-manager-loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.cat-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cat-list-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: 20px 0;
+}
+
+.cat-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 0.1s;
+}
+
+.cat-item:hover { background: var(--color-surface-2); }
+
+.cat-item--editing {
+  flex-direction: column;
+  align-items: stretch;
+  border-color: var(--color-border);
+  background: var(--color-surface-2);
+  padding: 10px;
+}
+
+.cat-item-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cat-item-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.cat-item-name {
+  flex: 1;
+  font-size: 0.88rem;
+  color: var(--color-text);
+}
+
+.cat-item-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.cat-item-edit-color { margin-top: 4px; }
+
+.btn-cat-icon {
+  background: none;
+  border: none;
+  padding: 4px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  transition: background 0.1s;
+}
+
+.btn-cat-icon:hover { background: var(--color-surface-2); color: var(--color-text); }
+.btn-cat-icon:disabled { opacity: 0.4; cursor: default; }
+.btn-cat-icon--danger { color: var(--color-danger); }
+.btn-cat-icon--danger:hover { background: var(--color-danger-dim); color: var(--color-danger); }
+
+/* Holiday import section */
+.cat-manager-actions {
+  padding: 10px 14px;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-import-holidays {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-import-holidays:hover:not(:disabled) {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-import-holidays:disabled { opacity: 0.6; cursor: default; }
+
+.import-result {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.cat-nonworking-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.cat-nonworking-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #22c55e;
+  border: 1px solid #22c55e44;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Gear/settings button in year panel */
+.year-panel-settings {
+  display: flex;
+  justify-content: center;
+  padding: 6px 4px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.btn-settings {
+  background: none;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--color-text-muted);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-settings:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.btn-settings.active {
+  background: var(--color-primary-dim);
+  color: var(--color-primary);
+}

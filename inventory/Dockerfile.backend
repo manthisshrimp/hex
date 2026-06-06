@@ -1,0 +1,30 @@
+# Stage 1: Build
+FROM rust:1.85-slim AS builder
+
+WORKDIR /app
+
+# Copy manifest (no Cargo.lock yet — will be generated during build)
+COPY backend-rust/Cargo.toml ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs && echo "" > src/lib.rs && \
+    cargo build --release && rm -rf src
+
+# Build binary
+COPY backend-rust/src ./src
+RUN touch src/main.rs src/lib.rs && cargo build --release
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/inventory-backend /app/backend
+
+ENV PORT=3000
+ENV DATA_PATH=/data
+ENV RUST_LOG=info
+
+EXPOSE 3000
+
+ENTRYPOINT ["/app/backend"]

@@ -1,0 +1,37 @@
+.search-tab { padding: 16px; padding-bottom: 72px; }
+.search-input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 16px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  margin-bottom: 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--color-primary); }
+.search-input::placeholder { color: var(--color-text-muted); }
+.search-status { color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 16px; }
+.search-error { color: var(--color-danger); font-size: 14px; padding: 8px; }
+.item-list { list-style: none; padding: 0; margin: 0; }
+.item-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+.item-name { font-weight: 600; font-size: 15px; color: var(--color-text); }
+.item-path { color: var(--color-text-muted); font-size: 13px; margin-top: 2px; }
+.item-meta { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.item-qty { font-size: 13px; color: var(--color-text-muted); }
+.item-tag {
+  font-size: 11px;
+  background: var(--color-primary-dim);
+  color: var(--color-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}

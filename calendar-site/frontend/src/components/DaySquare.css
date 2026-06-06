@@ -1,0 +1,107 @@
+.day-square {
+  width: 100%;
+  min-height: 48px;
+  background: var(--color-surface);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  position: relative;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-left-width: 3px;
+}
+
+.day-square:hover { background: var(--color-surface-2); }
+.day-square.today { border-color: var(--color-today); }
+.day-square.selected { background: var(--color-primary-dim); }
+
+.day-square.weekend { background: #141e16; }
+.day-square.weekend:hover { background: #1a2a1c; }
+.day-square.weekend .day-header-name,
+.day-square.weekend .day-header-num { color: #52a872; }
+
+.day-header {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.day-header-name {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+}
+
+.day-header-num {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.day-header-month {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+
+.day-square.today .day-header-num { color: var(--color-today); }
+.day-square.selected .day-header-num { color: var(--color-primary-hover); }
+
+.day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.day-event-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.day-event-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.day-event-title {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.day-event-more {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  padding-left: 11px;
+  opacity: 0.7;
+}
+
+/* Week separator */
+.week-separator {
+  width: 100%;
+  height: 1px;
+  background: var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+.week-number {
+  font-size: 0.62rem;
+  color: var(--color-text-muted);
+  padding: 0 6px;
+  font-weight: 600;
+  background: var(--color-bg);
+}

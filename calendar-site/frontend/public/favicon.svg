@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark background -->
+  <rect width="32" height="32" rx="6" fill="#0f0f13"/>
+  <!-- Purple header bar -->
+  <rect x="3" y="3" width="26" height="8" rx="3" fill="#7c6af7"/>
+  <!-- Day grid – row 1 -->
+  <rect x="3" y="14" width="5" height="5" rx="1" fill="#7c6af7"/>
+  <rect x="10" y="14" width="5" height="5" rx="1" fill="#24243a"/>
+  <rect x="17" y="14" width="5" height="5" rx="1" fill="#24243a"/>
+  <rect x="24" y="14" width="5" height="5" rx="1" fill="#1a2e1e"/>
+  <!-- Day grid – row 2 -->
+  <rect x="3" y="22" width="5" height="5" rx="1" fill="#24243a"/>
+  <rect x="10" y="22" width="5" height="5" rx="1" fill="#24243a"/>
+  <rect x="17" y="22" width="5" height="5" rx="1" fill="#24243a"/>
+  <rect x="24" y="22" width="5" height="5" rx="1" fill="#1a2e1e"/>
+</svg>

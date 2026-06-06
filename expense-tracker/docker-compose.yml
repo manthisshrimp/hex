@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: expense-backend
+    ports:
+      - "3002:3000"
+    environment:
+      - PORT=3000
+      - DATA_PATH=/data
+      - RUST_LOG=info
+    volumes:
+      - expense-data:/data
+    networks:
+      - expense-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: expense-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE=http://localhost:3000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - expense-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    command: npm run dev
+
+volumes:
+  expense-data:
+    driver: local
+
+networks:
+  expense-network:
+    driver: bridge

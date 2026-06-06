@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="6" fill="#1a1a24"/>
+  <!-- lid (slightly wider than body) -->
+  <rect x="5" y="9" width="22" height="5" rx="1.5" fill="#9585ff" opacity="0.25"/>
+  <rect x="5" y="9" width="22" height="5" rx="1.5" fill="none" stroke="#9585ff" stroke-width="1.8"/>
+  <!-- box body -->
+  <rect x="7" y="14" width="18" height="12" rx="1.5" fill="#7c6af7" opacity="0.2"/>
+  <rect x="7" y="14" width="18" height="12" rx="1.5" fill="none" stroke="#7c6af7" stroke-width="1.8"/>
+</svg>

@@ -1,0 +1,56 @@
+name: habits-dev
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: habits-backend-dev
+    ports:
+      - "3018:3000"
+    environment:
+      - PORT=3000
+      - DATA_PATH=/data
+      - RUST_LOG=info
+      - TASKBOARD_URL=http://host.docker.internal:3009
+      - TASKBOARD_HABITS_USER=aldus
+      - HABITS_URL=http://host.docker.internal:3018
+      - OCTIRON_API_KEY_PATH=/root/.octiron-api-key
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - habits-dev-data:/data
+      - /home/aldus/.habits-admin.pwd:/root/.habits-admin.pwd:ro
+      - /home/aldus/.octiron-api-key:/root/.octiron-api-key:ro
+    networks:
+      - habits-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.frontend
+    container_name: habits-frontend-dev
+    ports:
+      - "5188:5188"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - habits-dev-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  habits-dev-network:
+    driver: bridge
+
+volumes:
+  habits-dev-data:

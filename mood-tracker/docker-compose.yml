@@ -1,0 +1,42 @@
+version: '3.8'
+
+networks:
+  mood-network:
+    driver: bridge
+
+volumes:
+  mood-data:
+
+services:
+  backend:
+    image: node:18-slim
+    container_name: mood-backend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3004:3000"
+    environment:
+      PORT: "3000"
+      DATA_PATH: /data
+    volumes:
+      - ./backend:/app
+      - mood-data:/data
+    networks:
+      - mood-network
+    restart: unless-stopped
+
+  frontend:
+    image: node:18
+    container_name: mood-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "5178:5178"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - mood-network
+    depends_on:
+      - backend
+    restart: unless-stopped

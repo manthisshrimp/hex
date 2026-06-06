@@ -1,0 +1,68 @@
+.days-panel-header {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 10px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.days-panel-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.days-panel-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.upcoming-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  min-width: 0;
+}
+
+.upcoming-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.upcoming-title {
+  flex: 1;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.upcoming-date {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.upcoming-days {
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: right;
+}

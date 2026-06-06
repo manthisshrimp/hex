@@ -1,0 +1,72 @@
+.days-list {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--color-bg);
+}
+
+.days-list-content {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px;
+  gap: 4px;
+}
+
+/* Scrollbar */
+.days-list::-webkit-scrollbar { width: 4px; }
+.days-list::-webkit-scrollbar-track { background: transparent; }
+.days-list::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+.days-list::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
+
+/* Loading indicator */
+.loading-indicator {
+  padding: 12px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+/* Scroll observer - invisible target */
+.scroll-observer {
+  height: 1px;
+  width: 100%;
+}
+
+/* Week group — contains separator + 7 day squares */
+.week-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 1px 1px;
+}
+
+.week-group--active {
+  border-color: var(--color-text-muted);
+}
+
+.week-group--current {
+  box-shadow: inset 3px 0 0 var(--color-today);
+}
+
+/* Week separator */
+.week-separator {
+  width: 100%;
+  height: 1px;
+  background: var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+
+.week-separator .week-number {
+  font-size: 0.62rem;
+  color: var(--color-text-muted);
+  padding: 0 6px;
+  font-weight: 600;
+  background: var(--color-bg);
+}

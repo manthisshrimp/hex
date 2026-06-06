@@ -1,0 +1,36 @@
+# Stage 1: Build
+FROM rust:1.86-slim AS builder
+
+WORKDIR /app
+
+COPY backend-rust/Cargo.toml ./
+
+# Cache dependencies with a dummy build
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    cargo build --release && \
+    rm -rf src
+
+COPY backend-rust/src ./src
+COPY backend-rust/items.json ./items.json
+RUN touch src/main.rs && cargo build --release
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y ca-certificates curl && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/target/release/habits-backend /app/backend
+
+ENV PORT=3000
+ENV DATA_PATH=/data
+ENV RUST_LOG=info
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -fs http://localhost:3000/health || exit 1
+
+ENTRYPOINT ["/app/backend"]

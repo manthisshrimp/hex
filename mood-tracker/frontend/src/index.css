@@ -1,0 +1,585 @@
+/* ============================================================
+   Reset & base
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f13;
+  color: #e2e8f0;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* ============================================================
+   Login page
+   ============================================================ */
+
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 24px 16px;
+}
+
+.login-card {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 32px;
+  width: 100%;
+  max-width: 360px;
+  border: 1px solid #253347;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  justify-content: center;
+}
+
+.login-brand-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.login-brand-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-error {
+  color: #f87171;
+  font-size: 0.85rem;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.login-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.login-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0f0f13;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+  outline: none;
+}
+
+.login-input:focus {
+  border-color: #3b82f6;
+}
+
+.login-input::placeholder {
+  color: #334155;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.login-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Record page
+   ============================================================ */
+
+.record-page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  position: relative;
+}
+
+.record-title {
+  font-size: 1.8rem;
+  font-weight: 300;
+  text-align: center;
+  margin-bottom: 36px;
+  color: #94a3b8;
+  letter-spacing: -0.01em;
+}
+
+.record-columns {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.mood-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mood-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mood-list-label {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  text-transform: capitalize;
+  font-weight: 400;
+}
+
+.energy-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding-top: 2px;
+  padding-right: 64px;
+}
+
+/* ============================================================
+   Circle components
+   ============================================================ */
+
+.circle-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.circle {
+  border-radius: 50%;
+  border: 3px solid var(--circle-color);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+  outline: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.circle:focus-visible {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+}
+
+.circle-lg {
+  width: 88px;
+  height: 88px;
+}
+
+.circle-md {
+  width: 64px;
+  height: 64px;
+}
+
+.circle-sm {
+  width: 52px;
+  height: 52px;
+}
+
+.circle-lg .circle-icon {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.circle-md .circle-icon {
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.circle-sm .circle-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.circle.tapping {
+  transform: scale(1.18);
+  background: var(--circle-color);
+}
+
+.circle.failed {
+  animation: shake 0.5s ease;
+}
+
+.circle-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: center;
+  max-width: 72px;
+  line-height: 1.3;
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  z-index: 100;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid;
+}
+
+.toast-success {
+  color: #4ade80;
+  border-color: #22c55e;
+}
+
+.toast-error {
+  color: #f87171;
+  border-color: #ef4444;
+}
+
+/* ============================================================
+   Floating note button
+   ============================================================ */
+
+.floating-note-btn {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  border-radius: 0;
+  background: #1e293b;
+  border: none;
+  border-top: 1px solid #334155;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  z-index: 110;
+  animation: float-in 0.2s ease forwards, float-out 0.4s ease 4.6s forwards;
+  touch-action: manipulation;
+}
+
+.floating-note-btn:hover {
+  background: #253347;
+  color: #e2e8f0;
+}
+
+/* ============================================================
+   Inline history section (on record page)
+   ============================================================ */
+
+.inline-history {
+  margin-top: 48px;
+  border-top: 1px solid #1a1a24;
+}
+
+.inline-history-heading {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #334155;
+  padding: 20px 16px 4px;
+  font-weight: 600;
+}
+
+.history-list {
+  padding: 0 16px 80px;
+}
+
+.day-header {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #475569;
+  padding: 20px 0 8px;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.entry-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #1a1a24;
+}
+
+.entry-time {
+  font-size: 0.8rem;
+  color: #475569;
+  min-width: 40px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.entry-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.entry-label {
+  flex: 1;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.entry-row--tappable {
+  cursor: pointer;
+}
+
+.entry-row--tappable:hover {
+  background: #1a1a24;
+}
+
+.entry-note-indicator {
+  font-size: 0.85rem;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.entry-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #253347;
+}
+
+.entry-detail-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.entry-detail-label {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.entry-detail-time {
+  font-size: 0.8rem;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+}
+
+.entry-detail-note {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.4;
+  padding: 4px;
+  transition: opacity 0.15s ease;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.delete-btn:hover {
+  opacity: 1;
+}
+
+.loading-indicator,
+.end-of-list,
+.empty-state {
+  text-align: center;
+  color: #334155;
+  padding: 24px;
+  font-size: 0.85rem;
+}
+
+/* ============================================================
+   Note dialog
+   ============================================================ */
+
+.note-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 200;
+}
+
+.note-dialog {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 20px;
+  width: 100%;
+  max-width: 360px;
+  border: 1px solid #253347;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.note-input {
+  width: 100%;
+  background: #0f0f13;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 10px 12px;
+  resize: none;
+  outline: none;
+  line-height: 1.5;
+}
+
+.note-input:focus {
+  border-color: #3b82f6;
+}
+
+.note-input::placeholder {
+  color: #334155;
+}
+
+.note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.note-skip {
+  padding: 8px 16px;
+  background: none;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.note-skip:hover {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.note-submit {
+  padding: 8px 16px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.9rem;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.note-submit:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.note-submit:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+@keyframes float-in {
+  from { opacity: 0; transform: scale(0.7) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes float-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.8); }
+}
