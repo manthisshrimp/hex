@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { SnackbarProvider } from './components/Snackbar.jsx';
 import AdminAuth from './components/AdminAuth.jsx';
@@ -8,6 +8,10 @@ import MonthView from './components/MonthView.jsx';
 import CategoriesManager from './components/CategoriesManager.jsx';
 import { setAuthToken as apiSetAuthToken, setAuthFailureHandler } from './api.js';
 import './index.css';
+
+const now = new Date();
+const CURRENT_YEAR = now.getFullYear();
+const CURRENT_MONTH = now.getMonth() + 1;
 
 function App() {
   const [authToken, setAuthToken] = useState(null);
@@ -54,6 +58,9 @@ function App() {
         <div className="app">
           <header className="app-header">
             <h1>💰 Expense Tracker</h1>
+            <Link to={`/month/${CURRENT_YEAR}/${CURRENT_MONTH}`} className="btn btn--secondary">
+              This Month
+            </Link>
             <button className="btn-logout" onClick={handleLogout}>
               Logout
             </button>

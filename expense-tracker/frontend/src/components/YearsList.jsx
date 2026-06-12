@@ -2,10 +2,6 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { getYears, createYear } from '../api.js'
 
-const now = new Date()
-const CURRENT_YEAR = now.getFullYear()
-const CURRENT_MONTH = now.getMonth() + 1
-
 export default function YearsList({ authToken }) {
   const [years, setYears] = useState([])
   const [loading, setLoading] = useState(true)
@@ -86,12 +82,6 @@ export default function YearsList({ authToken }) {
       {/* ── Header ── */}
       <header className="years-list__header">
         <div className="years-list__header-actions">
-          <Link
-            to={`/month/${CURRENT_YEAR}/${CURRENT_MONTH}`}
-            className="btn btn--secondary"
-          >
-            This Month
-          </Link>
           {!showAddYear && (
             <button className="btn btn--primary" onClick={() => setShowAddYear(true)}>
               + New Year
