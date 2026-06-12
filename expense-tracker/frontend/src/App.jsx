@@ -58,12 +58,14 @@ function App() {
         <div className="app">
           <header className="app-header">
             <h1>💰 Expense Tracker</h1>
-            <Link to={`/month/${CURRENT_YEAR}/${CURRENT_MONTH}`} className="btn btn--secondary">
-              This Month
-            </Link>
-            <button className="btn-logout" onClick={handleLogout}>
-              Logout
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <Link to={`/month/${CURRENT_YEAR}/${CURRENT_MONTH}`} className="btn btn--secondary">
+                This Month
+              </Link>
+              <button className="btn-logout" onClick={handleLogout}>
+                Logout
+              </button>
+            </div>
           </header>
           <Routes>
             <Route path="/" element={<YearsList authToken={authToken} />} />
