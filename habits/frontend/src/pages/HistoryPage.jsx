@@ -109,13 +109,13 @@ export default function HistoryPage() {
     (completionsByHabit[c.habitId || c.habit_id]).add(day);
   });
 
-  // Only show active habits in heatmap, system first
+  // Only show active habits in heatmap, sorted by completion frequency descending
   const heatmapHabits = [...habits]
     .filter(h => h.active)
     .sort((a, b) => {
-      if (a.system && !b.system) return -1;
-      if (!a.system && b.system) return 1;
-      return 0;
+      const freqA = completionsByHabit[a.id]?.size ?? 0;
+      const freqB = completionsByHabit[b.id]?.size ?? 0;
+      return freqB - freqA;
     });
 
   const tooltipStyle = {
