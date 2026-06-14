@@ -75,7 +75,7 @@ export const getHistoryHp = () => apiFetch('/habits/api/history/hp');
 
 export const getHistoryGold = () => apiFetch('/habits/api/history/gold');
 
-export const getHistoryCompletions = () => apiFetch('/habits/api/history/completions');
+export const getHistoryCompletions = (days = 60) => apiFetch(`/habits/api/history/completions?days=${days}`);
 
 export const getRandomEvent = () => apiFetch('/habits/api/random-event');
 export const resolveRandomEvent = () => apiFetch('/habits/api/random-event/resolve', { method: 'POST' });

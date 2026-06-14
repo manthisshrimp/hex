@@ -109,13 +109,37 @@ export default function HistoryPage() {
     (completionsByHabit[c.habitId || c.habit_id]).add(day);
   });
 
-  // Only show active habits in heatmap, sorted by completion frequency descending
+  // For windowed habits, mark the days after a completion that fall within its window
+  // (the days where the habit isn't due yet) so they can be shown faded
+  const coveredByHabit = {};
+  habits.forEach(h => {
+    if (h.frequency !== 'windowed' || !h.windowDays || h.windowDays <= 1) return;
+    const completionDates = completionsByHabit[h.id];
+    if (!completionDates) return;
+    const covered = new Set();
+    completionDates.forEach(dateStr => {
+      const base = new Date(dateStr + 'T00:00:00Z');
+      for (let i = 1; i < h.windowDays; i++) {
+        covered.add(new Date(base.getTime() + i * 86400000).toISOString().slice(0, 10));
+      }
+    });
+    completionDates.forEach(d => covered.delete(d));
+    coveredByHabit[h.id] = covered;
+  });
+
+  const days30Set = new Set(days30);
+
+  // Only show active habits in heatmap, sorted by active days (completions + covered) ascending
   const heatmapHabits = [...habits]
     .filter(h => h.active)
     .sort((a, b) => {
-      const freqA = completionsByHabit[a.id]?.size ?? 0;
-      const freqB = completionsByHabit[b.id]?.size ?? 0;
-      return freqB - freqA;
+      const completionsA = completionsByHabit[a.id] ?? new Set();
+      const completionsB = completionsByHabit[b.id] ?? new Set();
+      const coveredA = coveredByHabit[a.id] ?? new Set();
+      const coveredB = coveredByHabit[b.id] ?? new Set();
+      const countA = [...completionsA, ...coveredA].filter(d => days30Set.has(d)).length;
+      const countB = [...completionsB, ...coveredB].filter(d => days30Set.has(d)).length;
+      return countA - countB;
     });
 
   const tooltipStyle = {
@@ -137,7 +161,89 @@ export default function HistoryPage() {
   return (
     <div className="page-content">
       <div className="chronicle-cols">
-        {/* Column 1: Charts */}
+        {/* Column 1: Battle Record */}
+        <div className="chart-section">
+          <SectionHeader>BATTLE RECORD</SectionHeader>
+          <div className="chart-container">
+            {heatmapHabits.length === 0 ? (
+              <div className="empty-state" style={{ padding: '16px 0' }}>
+                No habits to display.
+              </div>
+            ) : (
+              heatmapHabits.map(h => (
+                <div key={h.id} className="heatmap-habit">
+                  <div
+                    className="heatmap-name"
+                    style={{
+                      fontFamily: "'Cinzel', serif",
+                      fontSize: '0.8rem',
+                      color: `var(--color-imp-${h.importance})`,
+                      marginBottom: '6px',
+                    }}
+                  >
+                    {h.name}
+                  </div>
+                  <div className="heatmap-grid">
+                    {days30.map(day => {
+                      const filled = completionsByHabit[h.id]?.has(day) ?? false;
+                      const covered = !filled && (coveredByHabit[h.id]?.has(day) ?? false);
+                      const isToday = day === today;
+                      return (
+                        <div
+                          key={day}
+                          className={[
+                            'heatmap-cell',
+                            filled ? `filled ${IMP_CLASS[h.importance]}` : '',
+                            covered ? `covered ${IMP_CLASS[h.importance]}` : '',
+                            isToday ? 'today-cell' : '',
+                          ].filter(Boolean).join(' ')}
+                          title={day}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Column 2: Encounters */}
+        <div className="chart-section">
+          <SectionHeader>ENCOUNTERS</SectionHeader>
+          {encounters.length === 0 ? (
+            <div className="empty-state" style={{ padding: '16px 0' }}>No encounters recorded yet.</div>
+          ) : (
+            <div className="encounter-list">
+              {encounters.map((enc, i) => (
+                <div key={i} className="encounter-row stone-panel">
+                  <div className="encounter-header">
+                    <span className="encounter-title">{enc.title}</span>
+                    <span className="encounter-date">{enc.resolvedAt}</span>
+                  </div>
+                  <div className="encounter-outcome">{enc.outcomeText}</div>
+                  <div className="encounter-stats">
+                    {enc.choiceMade && (
+                      <span className="encounter-choice">Choice: {enc.choiceMade}</span>
+                    )}
+                    {enc.hpDelta !== 0 && (
+                      <span className={enc.hpDelta > 0 ? 'event-stat-pos' : 'event-stat-neg'}>
+                        ♥ {enc.hpDelta > 0 ? '+' : ''}{Math.round(enc.hpDelta)}
+                      </span>
+                    )}
+                    {enc.goldDelta !== 0 && (
+                      <span className={enc.goldDelta > 0 ? 'event-stat-pos' : 'event-stat-neg'}>
+                        ⚜ {enc.goldDelta > 0 ? '+' : ''}{Math.round(enc.goldDelta)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Column 3: Charts */}
         <div className="chronicle-charts">
           <div className="chart-section">
             <SectionHeader>VITALITY RECORD</SectionHeader>
@@ -224,85 +330,6 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Column 2: Encounters */}
-        <div className="chart-section">
-          <SectionHeader>ENCOUNTERS</SectionHeader>
-          {encounters.length === 0 ? (
-            <div className="empty-state" style={{ padding: '16px 0' }}>No encounters recorded yet.</div>
-          ) : (
-            <div className="encounter-list">
-              {encounters.map((enc, i) => (
-                <div key={i} className="encounter-row stone-panel">
-                  <div className="encounter-header">
-                    <span className="encounter-title">{enc.title}</span>
-                    <span className="encounter-date">{enc.resolvedAt}</span>
-                  </div>
-                  <div className="encounter-outcome">{enc.outcomeText}</div>
-                  <div className="encounter-stats">
-                    {enc.choiceMade && (
-                      <span className="encounter-choice">Choice: {enc.choiceMade}</span>
-                    )}
-                    {enc.hpDelta !== 0 && (
-                      <span className={enc.hpDelta > 0 ? 'event-stat-pos' : 'event-stat-neg'}>
-                        ♥ {enc.hpDelta > 0 ? '+' : ''}{Math.round(enc.hpDelta)}
-                      </span>
-                    )}
-                    {enc.goldDelta !== 0 && (
-                      <span className={enc.goldDelta > 0 ? 'event-stat-pos' : 'event-stat-neg'}>
-                        ⚜ {enc.goldDelta > 0 ? '+' : ''}{Math.round(enc.goldDelta)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Column 3: Battle Record */}
-        <div className="chart-section">
-          <SectionHeader>BATTLE RECORD</SectionHeader>
-          <div className="chart-container">
-            {heatmapHabits.length === 0 ? (
-              <div className="empty-state" style={{ padding: '16px 0' }}>
-                No habits to display.
-              </div>
-            ) : (
-              heatmapHabits.map(h => (
-                <div key={h.id} className="heatmap-habit">
-                  <div
-                    className="heatmap-name"
-                    style={{
-                      fontFamily: "'Cinzel', serif",
-                      fontSize: '0.8rem',
-                      color: `var(--color-imp-${h.importance})`,
-                      marginBottom: '6px',
-                    }}
-                  >
-                    {h.name}
-                  </div>
-                  <div className="heatmap-grid">
-                    {days30.map(day => {
-                      const filled = completionsByHabit[h.id]?.has(day) ?? false;
-                      const isToday = day === today;
-                      return (
-                        <div
-                          key={day}
-                          className={[
-                            'heatmap-cell',
-                            filled ? `filled ${IMP_CLASS[h.importance]}` : '',
-                            isToday ? 'today-cell' : '',
-                          ].filter(Boolean).join(' ')}
-                          title={day}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1135,6 +1135,10 @@ h1, h2, h3 {
 .heatmap-cell.filled.imp-medium { background-color: rgba(107, 148, 255, 0.7); }
 .heatmap-cell.filled.imp-high   { background-color: rgba(255, 255, 0, 0.7); }
 
+.heatmap-cell.covered.imp-low    { background-color: rgba(200, 200, 200, 0.35); }
+.heatmap-cell.covered.imp-medium { background-color: rgba(107, 148, 255, 0.35); }
+.heatmap-cell.covered.imp-high   { background-color: rgba(255, 255, 0, 0.35); }
+
 .heatmap-cell.today-cell {
   outline: 1px solid var(--color-gold);
   outline-offset: 1px;
