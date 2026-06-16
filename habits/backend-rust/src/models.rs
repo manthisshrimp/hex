@@ -29,6 +29,10 @@ pub struct Habit {
     pub notes: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub show_on_days: Option<Vec<u8>>,  // JS getDay() values: 0=Sun 1=Mon … 6=Sat; windowed only
+    #[serde(default)]
+    pub inscribed: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inscribed_at: Option<String>,   // ISO datetime when the habit was inscribed
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

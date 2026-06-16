@@ -44,6 +44,12 @@ impl Default for GameConfig {
 
 pub const SYSTEM_HABIT_ID: &str = "system-open-app";
 
+/// Gold awarded when a habit is inscribed (100% mastery achieved).
+/// Low: 200 ⚜, Medium: 300 ⚜, High: 400 ⚜
+pub fn inscribe_gold_reward(config: &GameConfig, importance: &Importance) -> f64 {
+    200.0 * importance_weight(config, importance)
+}
+
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 pub fn today() -> NaiveDate {

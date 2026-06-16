@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import StatBar from './StatBar'
 import { fmtNum } from '../fmt'
 import { IMP_COLOR } from '../constants'
@@ -8,30 +9,51 @@ function importanceIcon(imp) {
   return imp === 'low' ? '◆' : imp === 'medium' ? '◆◆' : '◆◆◆'
 }
 
+const KEBAB_CLOSE = 'kebab-close-all'
+
 function KebabMenu({ items }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef()
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const btnRef = useRef()
+  const menuRef = useRef()
+  const id = useRef(Math.random())
+
+  const handleOpen = (e) => {
+    e.stopPropagation()
+    if (!open) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + window.scrollY, right: window.innerWidth - rect.right })
+      document.dispatchEvent(new CustomEvent(KEBAB_CLOSE, { detail: id.current }))
+    }
+    setOpen(o => !o)
+  }
 
   useEffect(() => {
     if (!open) return
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    const onOutside = (e) => {
+      if (!menuRef.current?.contains(e.target) && !btnRef.current?.contains(e.target))
+        setOpen(false)
     }
-    document.addEventListener('click', handler)
-    return () => document.removeEventListener('click', handler)
+    const onOther = (e) => { if (e.detail !== id.current) setOpen(false) }
+    document.addEventListener('click', onOutside)
+    document.addEventListener(KEBAB_CLOSE, onOther)
+    return () => {
+      document.removeEventListener('click', onOutside)
+      document.removeEventListener(KEBAB_CLOSE, onOther)
+    }
   }, [open])
 
   if (!items.length) return null
 
   return (
-    <div className="kebab-wrap" ref={ref}>
-      <button
-        className="kebab-btn"
-        onClick={(e) => { e.stopPropagation(); setOpen(o => !o) }}
-        aria-label="Actions"
-      >⋮</button>
-      {open && (
-        <div className="kebab-menu">
+    <>
+      <button ref={btnRef} className="kebab-btn" onClick={handleOpen} aria-label="Actions">⋮</button>
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          className="kebab-menu"
+          style={{ position: 'absolute', top: pos.top, right: pos.right, zIndex: 9999 }}
+        >
           {items.map(({ label, danger, disabled, onClick }) => (
             <button
               key={label}
@@ -41,9 +63,10 @@ function KebabMenu({ items }) {
               {label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }
 
@@ -65,6 +88,8 @@ export default function HabitCard({
   onResume,
   onMoveUp,
   onMoveDown,
+  onInscribe,
+  onRestore,
   completed,
 }) {
   const cardRef = useRef()
@@ -79,12 +104,17 @@ export default function HabitCard({
     }
   }
 
-  const menuItems = habit.system ? [] : habit.active
+  const menuItems = habit.system ? [] : habit.inscribed
+    ? [
+        ...(onRestore ? [{ label: 'Restore', onClick: onRestore }] : []),
+      ]
+    : habit.active
     ? [
         ...(onMoveUp   ? [{ label: 'Move up',   onClick: onMoveUp }]   : []),
         ...(onMoveDown ? [{ label: 'Move down', onClick: onMoveDown }] : []),
         ...(onEdit  ? [{ label: 'Edit',   onClick: onEdit }]  : []),
         ...(onReschedule && rescheduleCost !== null ? [{ label: `Delay — ${rescheduleCost} ⚜`, onClick: onReschedule, disabled: currentGold < rescheduleCost }] : []),
+        ...(onInscribe && consistency >= 1 ? [{ label: 'Inscribe', onClick: onInscribe }] : []),
         ...(onPause ? [{ label: 'Pause',  onClick: onPause }] : []),
         ...(onDelete ? [{ label: 'Delete', danger: true, onClick: onDelete }] : []),
       ]
@@ -107,6 +137,12 @@ export default function HabitCard({
         }
         .habit-card.completed { background-color: var(--color-complete); opacity: 0.75; }
         .habit-card.paused { border-style: dashed; opacity: 0.8; }
+        .habit-card.inscribed { border-color: #5a5a5a; border-left-color: #9a9a9a; background-color: #2a2a2a; background-image: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.12) 3px, rgba(0,0,0,0.12) 4px), repeating-linear-gradient(90deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px); box-shadow: inset 0 1px 0 rgba(150,150,150,0.15), inset 0 -1px 0 #1a1a1a, 0 4px 12px rgba(0,0,0,0.6); }
+        .habit-card.inscribed .habit-name { color: #c0b8a8; }
+        .habit-card.inscribed .habit-imp-icon { color: #7a7060; }
+        .habit-card.inscribed .habit-divider { border-top-color: #484848; }
+        .habit-inscribed-banner { text-align: center; font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.2em; color: #9a9080; padding: 2px 0 4px; }
+        .habit-inscribed-date { text-align: center; font-size: 0.7rem; color: #6a6050; font-style: italic; }
         .habit-card.high-importance { animation: pulse-border 3s ease-in-out infinite; }
         .habit-name { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 600; flex: 1; min-width: 0; }
         .habit-badge { font-size: 0.65rem; color: var(--color-text-muted); letter-spacing: 0.1em; font-family: 'Cinzel', serif; }
@@ -127,10 +163,9 @@ export default function HabitCard({
         .complete-btn { width: 100%; padding: 8px; font-size: 0.85rem; }
         .reschedule-btn { width: 100%; padding: 8px; font-size: 0.8rem; color: var(--color-text-muted); }
         .habit-imp-icon { font-style: normal; letter-spacing: 0.05em; }
-        .kebab-wrap { position: relative; flex-shrink: 0; }
-        .kebab-btn { background: none; border: none; color: var(--color-text-muted); font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer; }
+        .kebab-btn { background: none; border: none; color: var(--color-text-muted); font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer; flex-shrink: 0; }
         .kebab-btn:hover { color: var(--color-text); }
-        .kebab-menu { position: absolute; top: 100%; right: 0; z-index: 100; min-width: 110px; background: var(--color-surface-mid); border: 1px solid var(--color-border); border-radius: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
+        .kebab-menu { min-width: 110px; background: var(--color-surface-mid); border: 1px solid var(--color-border); border-radius: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
         .kebab-item { background: none; border: none; text-align: left; padding: 10px 14px; font-size: 0.85rem; color: var(--color-text); cursor: pointer; font-family: 'IM Fell English', Georgia, serif; }
         .kebab-item:hover { background: var(--color-surface-high); }
         .kebab-item.danger { color: var(--color-overdue); }
@@ -142,19 +177,20 @@ export default function HabitCard({
         className={[
           'habit-card stone-panel',
           completed ? 'completed' : '',
-          !habit.active ? 'paused' : '',
-          habit.importance === 'high' && !completed ? 'high-importance' : '',
+          habit.inscribed ? 'inscribed' : '',
+          !habit.active && !habit.inscribed ? 'paused' : '',
+          habit.importance === 'high' && !completed && !habit.inscribed ? 'high-importance' : '',
         ].filter(Boolean).join(' ')}
-        style={{ borderLeftColor: IMP_COLOR[habit.importance] }}
+        style={habit.inscribed ? undefined : { borderLeftColor: IMP_COLOR[habit.importance] }}
       >
         {/* Header row */}
         <div className="habit-card-header">
-          <span className="habit-name" style={{ color: IMP_COLOR[habit.importance] }}>
+          <span className="habit-name" style={habit.inscribed ? undefined : { color: IMP_COLOR[habit.importance] }}>
             {habit.name}
           </span>
           {habit.system
             ? <span className="habit-badge">INNATE</span>
-            : <span className="habit-imp-icon" style={{ color: IMP_COLOR[habit.importance] }}>{importanceIcon(habit.importance)}</span>
+            : <span className="habit-imp-icon" style={habit.inscribed ? undefined : { color: IMP_COLOR[habit.importance] }}>{importanceIcon(habit.importance)}</span>
           }
           <KebabMenu items={menuItems} />
         </div>
@@ -162,32 +198,52 @@ export default function HabitCard({
         <div className="habit-divider" />
 
         {/* Mastery bar + gold/day */}
-        <div className="habit-mastery-row">
-          <StatBar value={consistency} color={IMP_COLOR[habit.importance]} label="Mastery" />
-          {healing
-            ? <span className="habit-meta-heal">♥ {fmtNum(passiveGold ?? 0, 1)}/day</span>
-            : <span className="habit-meta-gold">⚜ {fmtNum(passiveGold ?? 0, 1)}/day</span>
-          }
-        </div>
+        {!habit.inscribed && (
+          <div className="habit-mastery-row">
+            <StatBar value={consistency} color={IMP_COLOR[habit.importance]} label="Mastery" />
+            {healing
+              ? <span className="habit-meta-heal">♥ {fmtNum(passiveGold ?? 0, 1)}/day</span>
+              : <span className="habit-meta-gold">⚜ {fmtNum(passiveGold ?? 0, 1)}/day</span>
+            }
+          </div>
+        )}
 
         {/* Freq + deadline + streak */}
-        <div className="habit-freq-row">
-          <span className="habit-freq-label">
+        {habit.inscribed ? (
+          <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#6a6050', fontStyle: 'italic' }}>
             {habit.frequency === 'daily' ? 'Daily Quest' : `Every ${habit.windowDays} days`}
-          </span>
-          <span className={`habit-deadline${isOverdue(nextDeadline) ? ' overdue' : ''}`}>
-            {deadlineLabel(nextDeadline)}
-          </span>
-          <span className="habit-streak">{streak > 0 ? `>> ${streak}` : ''}</span>
-        </div>
+          </div>
+        ) : (
+          <div className="habit-freq-row">
+            <span className="habit-freq-label">
+              {habit.frequency === 'daily' ? 'Daily Quest' : `Every ${habit.windowDays} days`}
+            </span>
+            <span className={`habit-deadline${isOverdue(nextDeadline) ? ' overdue' : ''}`}>
+              {deadlineLabel(nextDeadline)}
+            </span>
+            <span className="habit-streak">{streak > 0 ? `>> ${streak}` : ''}</span>
+          </div>
+        )}
 
         {/* Notes */}
         {habit.notes && (
           <div className="habit-notes">{habit.notes}</div>
         )}
 
-        {/* Actions: active and not completed */}
-        {habit.active && !completed && (
+        {/* Inscribed state */}
+        {habit.inscribed && (
+          <>
+            <div className="habit-inscribed-banner">⚜ INSCRIBED IN STONE ⚜</div>
+            {habit.inscribedAt && (
+              <div className="habit-inscribed-date">
+                {new Date(habit.inscribedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Actions: active and not completed and not inscribed */}
+        {habit.active && !completed && !habit.inscribed && (
           <div className="habit-actions">
             <button className="bevel-btn complete-btn" onClick={handleComplete}>
               COMPLETE &nbsp;⚜ ~{fmtNum(Math.floor(completionGold ?? 0))}
@@ -196,7 +252,7 @@ export default function HabitCard({
         )}
 
         {/* Completed state */}
-        {completed && (
+        {completed && !habit.inscribed && (
           <div className="habit-completed-rune">✦ Quest Complete</div>
         )}
       </div>

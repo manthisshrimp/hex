@@ -74,7 +74,7 @@ pub async fn get_character(
 
     if last_tick < today {
         let all_habits = state.store.habits.get_all();
-        let active_habits: Vec<_> = all_habits.iter().filter(|h| h.active).cloned().collect();
+        let active_habits: Vec<_> = all_habits.iter().filter(|h| h.active && !h.inscribed).cloned().collect();
         let all_completions = state.store.completions.get_all();
 
         // Ensure initial deadlines exist for every active habit.
@@ -156,7 +156,7 @@ pub async fn get_character(
         let all_completions = state.store.completions.get_all();
 
         let pending: Vec<CheckinHabit> = all_habits.iter()
-            .filter(|h| h.active && h.id != SYSTEM_HABIT_ID)
+            .filter(|h| h.active && !h.inscribed && h.id != SYSTEM_HABIT_ID)
             .filter(|h| raw_deadlines.get(&h.id).map(|d| d == &yesterday_str).unwrap_or(false))
             .filter(|h| !all_completions.iter().any(|c| {
                 c.habit_id == h.id && c.completed_at.get(..10).unwrap_or("") == yesterday_str
@@ -222,7 +222,7 @@ pub async fn get_character(
 
 async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppError> {
     let all_habits = state.store.habits.get_all();
-    let active_habits: Vec<_> = all_habits.iter().filter(|h| h.active).cloned().collect();
+    let active_habits: Vec<_> = all_habits.iter().filter(|h| h.active && !h.inscribed).cloned().collect();
     let all_completions = state.store.completions.get_all();
     let raw_deadlines = state.store.deadlines.get_all();
     let deadlines: HashMap<String, NaiveDate> = raw_deadlines.iter()

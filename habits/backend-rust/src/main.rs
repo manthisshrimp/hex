@@ -15,7 +15,7 @@ use habits_backend::handlers::{
     debug::advance_days,
     habits::{
         list_habits, create_habit, update_habit, delete_habit,
-        complete_habit, reschedule_habit, move_habit,
+        complete_habit, reschedule_habit, move_habit, inscribe_habit, restore_habit,
     },
     history::{history_hp, history_gold, history_completions},
     shop::{get_shop, buy_item},
@@ -128,6 +128,8 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/api/habits/:id/complete", post(complete_habit))
         .route("/api/habits/:id/move", post(move_habit))
         .route("/api/habits/:id/reschedule", post(reschedule_habit))
+        .route("/api/habits/:id/inscribe", post(inscribe_habit))
+        .route("/api/habits/:id/restore", post(restore_habit))
         .route("/api/history/hp", get(history_hp))
         .route("/api/history/gold", get(history_gold))
         .route("/api/history/completions", get(history_completions))

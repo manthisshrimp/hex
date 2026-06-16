@@ -13,6 +13,7 @@ use crate::game;
 use crate::models::{
     Completion, CreateHabitRequest, GoldEvent, Habit, HabitWithState, UpdateHabitRequest,
 };
+use crate::game::inscribe_gold_reward;
 use super::AppState;
 
 fn compute_streak(habit: &Habit, completions: &[Completion], next_deadline_str: &str, today: NaiveDate) -> u32 {
@@ -437,4 +438,96 @@ pub async fn reschedule_habit(
         "gold_spent": cost,
         "new_gold": new_gold,
     })))
+}
+
+// ── POST /api/habits/:id/inscribe ─────────────────────────────────────────────
+
+pub async fn inscribe_habit(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<Value>, AppError> {
+    super::require_auth(&headers, &state).await?;
+
+    let habit = state
+        .store
+        .habits
+        .get_by_id(&id)
+        .ok_or_else(|| AppError::NotFound("Habit not found".to_string()))?;
+
+    if !habit.active {
+        return Err(AppError::Validation("Cannot inscribe a paused habit".to_string()));
+    }
+    if habit.inscribed {
+        return Err(AppError::Validation("Habit is already inscribed".to_string()));
+    }
+    if habit.system {
+        return Err(AppError::Validation("Cannot inscribe system habit".to_string()));
+    }
+
+    let today = game::today();
+    let habit_completions = state.store.completions.get_for_habit(&id);
+    let consistency = game::compute_consistency(&state.config, &habit, &habit_completions, today);
+    if consistency < 0.999 {
+        return Err(AppError::Validation(
+            "Habit must be at 100% mastery to inscribe".to_string(),
+        ));
+    }
+
+    let gold_reward = inscribe_gold_reward(&state.config, &habit.importance);
+
+    state.store.habits.inscribe(&id).await?;
+
+    let gold_event = GoldEvent {
+        id: Uuid::new_v4().to_string(),
+        event_type: "inscribe_reward".to_string(),
+        amount: gold_reward,
+        reason: format!("inscribed: {}", habit.name),
+        habit_id: Some(id.clone()),
+        timestamp: Utc::now().to_rfc3339(),
+    };
+    state.store.events.append_gold(gold_event).await?;
+
+    let mut character = state.store.character.get();
+    character.gold = game::apply_gold_delta(character.gold, gold_reward);
+    let new_gold = character.gold;
+    state.store.character.save(character).await?;
+
+    Ok(Json(json!({
+        "gold_earned": gold_reward,
+        "new_gold": new_gold,
+    })))
+}
+
+// ── POST /api/habits/:id/restore ─────────────────────────────────────────────
+
+pub async fn restore_habit(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<Value>, AppError> {
+    super::require_auth(&headers, &state).await?;
+
+    let habit = state
+        .store
+        .habits
+        .get_by_id(&id)
+        .ok_or_else(|| AppError::NotFound("Habit not found".to_string()))?;
+
+    if !habit.inscribed {
+        return Err(AppError::Validation("Habit is not inscribed".to_string()));
+    }
+
+    state.store.habits.restore(&id).await?;
+
+    // Reset deadline so the habit starts a fresh cycle from today.
+    let today = game::today();
+    let new_deadline = today + chrono::Duration::days(habit.window_days as i64);
+    state
+        .store
+        .deadlines
+        .set(&id, &new_deadline.format("%Y-%m-%d").to_string())
+        .await?;
+
+    Ok(Json(json!({ "ok": true })))
 }

@@ -62,6 +62,12 @@ export const completeHabit = (id) =>
 export const rescheduleHabit = (id) =>
   apiFetch(`/habits/api/habits/${id}/reschedule`, { method: 'POST' });
 
+export const inscribeHabit = (id) =>
+  apiFetch(`/habits/api/habits/${id}/inscribe`, { method: 'POST' });
+
+export const restoreHabit = (id) =>
+  apiFetch(`/habits/api/habits/${id}/restore`, { method: 'POST' });
+
 export const payFerryman = () =>
   apiFetch('/habits/api/character/pay-ferryman', { method: 'POST' });
 

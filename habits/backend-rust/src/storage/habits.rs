@@ -43,6 +43,8 @@ impl HabitsStore {
                 position: 0,
                 notes: None,
                 show_on_days: None,
+                inscribed: false,
+                inscribed_at: None,
             };
             let defaults = vec![seed];
             let content = defaults.iter()
@@ -80,6 +82,8 @@ impl HabitsStore {
                 position: next_pos,
                 notes: req.notes.filter(|n| !n.trim().is_empty()),
                 show_on_days: req.show_on_days.filter(|d| !d.is_empty()),
+                inscribed: false,
+                inscribed_at: None,
             };
             cache.push(habit.clone());
             habit
@@ -176,6 +180,35 @@ impl HabitsStore {
             cache[ci_b].position = rank as u32;
         }
         self.persist().await
+    }
+
+    pub async fn inscribe(&self, id: &str) -> Result<Habit, AppError> {
+        let updated = {
+            let mut cache = self.cache.lock().unwrap();
+            let idx = cache.iter().position(|h| h.id == id)
+                .ok_or_else(|| AppError::NotFound("Habit not found".to_string()))?;
+            if cache[idx].system {
+                return Err(AppError::Validation("Cannot inscribe system habit".to_string()));
+            }
+            cache[idx].inscribed = true;
+            cache[idx].inscribed_at = Some(Utc::now().to_rfc3339());
+            cache[idx].clone()
+        };
+        self.persist().await?;
+        Ok(updated)
+    }
+
+    pub async fn restore(&self, id: &str) -> Result<Habit, AppError> {
+        let updated = {
+            let mut cache = self.cache.lock().unwrap();
+            let idx = cache.iter().position(|h| h.id == id)
+                .ok_or_else(|| AppError::NotFound("Habit not found".to_string()))?;
+            cache[idx].inscribed = false;
+            cache[idx].inscribed_at = None;
+            cache[idx].clone()
+        };
+        self.persist().await?;
+        Ok(updated)
     }
 
     /// Shift all habit `created_at` dates back by `days` days (for debug time simulation).

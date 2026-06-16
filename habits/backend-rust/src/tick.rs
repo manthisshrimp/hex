@@ -58,8 +58,8 @@ pub fn process_tick(input: TickInput) -> TickOutput {
     let mut deadline_updates: Vec<DeadlineUpdate> = Vec::new();
 
     for habit in &input.habits {
-        // Only process active habits.
-        if !habit.active {
+        // Only process active, non-inscribed habits.
+        if !habit.active || habit.inscribed {
             continue;
         }
 
@@ -170,6 +170,9 @@ mod tests {
             created_at: "2020-01-01T00:00:00Z".to_string(),
             position: 0,
             notes: None,
+            show_on_days: None,
+            inscribed: false,
+            inscribed_at: None,
         }
     }
 
@@ -185,6 +188,9 @@ mod tests {
             created_at: "2020-01-01T00:00:00Z".to_string(),
             position: 0,
             notes: None,
+            show_on_days: None,
+            inscribed: false,
+            inscribed_at: None,
         }
     }
 

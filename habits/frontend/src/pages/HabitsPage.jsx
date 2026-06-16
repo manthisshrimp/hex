@@ -3,7 +3,7 @@ import HabitCard from '../components/HabitCard';
 import SectionHeader from '../components/SectionHeader';
 import ModalPanel from '../components/ModalPanel';
 import { useFloat } from '../components/FloatLayer';
-import { getHabits, createHabit, updateHabit, deleteHabit, completeHabit, rescheduleHabit, moveHabit } from '../api';
+import { getHabits, createHabit, updateHabit, deleteHabit, completeHabit, rescheduleHabit, moveHabit, inscribeHabit, restoreHabit } from '../api';
 import { SYSTEM_HABIT_ID } from '../constants';
 
 export default function HabitsPage({ hp, gold, refreshCharacter }) {
@@ -18,6 +18,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
   const [editingHabit, setEditingHabit] = useState(null);
 
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [inscribeTarget, setInscribeTarget] = useState(null); // { habit, goldReward }
 
   const loadHabits = useCallback(async () => {
     try {
@@ -77,6 +78,36 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
   const handleDeleteRequest = useCallback((habit) => {
     setConfirmDelete(habit);
   }, []);
+
+  const handleInscribeRequest = useCallback((habit) => {
+    const goldByImportance = { low: 200, medium: 300, high: 400 };
+    setInscribeTarget({ habit, goldReward: goldByImportance[habit.importance] ?? 200 });
+  }, []);
+
+  const handleInscribeConfirm = useCallback(async () => {
+    if (!inscribeTarget) return;
+    try {
+      const res = await inscribeHabit(inscribeTarget.habit.id);
+      if (!res.ok) return;
+      const result = await res.json();
+      setInscribeTarget(null);
+      if (result.gold_earned != null) {
+        addFloat({ type: 'gold', amount: Math.round(result.gold_earned) });
+      }
+      await Promise.all([loadHabits(), refreshCharacter()]);
+    } catch {
+      setInscribeTarget(null);
+    }
+  }, [inscribeTarget, addFloat, loadHabits, refreshCharacter]);
+
+  const handleRestore = useCallback(async (habitId) => {
+    try {
+      await restoreHabit(habitId);
+      await loadHabits();
+    } catch {
+      // ignore
+    }
+  }, [loadHabits]);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!confirmDelete) return;
@@ -153,7 +184,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
   }
 
   const activeHabits = habits
-    .filter(h => h.active)
+    .filter(h => h.active && !h.inscribed)
     .filter(h => h.id === SYSTEM_HABIT_ID || freqFilter === 'all' || h.frequency === freqFilter)
     .sort((a, b) => {
       if (a.id === SYSTEM_HABIT_ID) return 1;
@@ -162,7 +193,8 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
       return a.createdAt.localeCompare(b.createdAt);
     });
 
-  const pausedHabits = habits.filter(h => !h.active);
+  const pausedHabits = habits.filter(h => !h.active && !h.inscribed);
+  const inscribedHabits = habits.filter(h => h.inscribed).sort((a, b) => (b.inscribedAt ?? '').localeCompare(a.inscribedAt ?? ''));
 
   return (
     <div className="page-content">
@@ -210,6 +242,8 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
                 onPause={() => handlePause(h)}
                 onDelete={() => handleDeleteRequest(h)}
                 onResume={null}
+                onInscribe={h.consistency >= 1 ? () => handleInscribeRequest(h) : null}
+                onRestore={null}
                 onMoveUp={moveIdx > 0 ? () => handleMove(h.id, 'up') : null}
                 onMoveDown={moveIdx < moveable.length - 1 ? () => handleMove(h.id, 'down') : null}
               />
@@ -239,8 +273,40 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
               onPause={null}
               onDelete={() => handleDeleteRequest(h)}
               onResume={() => handleResume(h)}
+              onInscribe={null}
+              onRestore={null}
             />
           ))}
+        </div>
+      )}
+
+      {/* Inscribed section */}
+      {inscribedHabits.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <SectionHeader>INSCRIBED</SectionHeader>
+          <div className="habit-card-grid">
+          {inscribedHabits.map(h => (
+            <HabitCard
+              key={h.id}
+              habit={h}
+              consistency={h.consistency}
+              nextDeadline={h.nextDeadline}
+              rescheduleCost={null}
+              currentGold={gold}
+              completionGold={0}
+              passiveGold={0}
+              completed={false}
+              onComplete={null}
+              onReschedule={null}
+              onEdit={null}
+              onPause={null}
+              onDelete={null}
+              onResume={null}
+              onInscribe={null}
+              onRestore={() => handleRestore(h.id)}
+            />
+          ))}
+          </div>
         </div>
       )}
 
@@ -251,6 +317,39 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
         onSave={handleSave}
         initial={editingHabit}
       />
+
+      {/* Inscription ceremony */}
+      {inscribeTarget && (
+        <div className="confirm-overlay">
+          <div className="confirm-panel stone-panel" style={{ borderColor: 'var(--color-gold)' }}>
+            <p className="confirm-text" style={{ fontFamily: "'Cinzel', serif", color: 'var(--color-gold)', fontSize: '0.9rem', letterSpacing: '0.08em' }}>
+              ⚜ MASTERY ACHIEVED ⚜
+            </p>
+            <p className="confirm-text" style={{ marginTop: '8px' }}>
+              <strong style={{ color: 'var(--color-text)' }}>{inscribeTarget.habit.name}</strong>
+            </p>
+            <p className="confirm-text" style={{ marginTop: '8px', fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
+              This discipline has been carved into your character.<br />
+              Receive <span style={{ color: 'var(--color-gold)', fontWeight: 600 }}>{inscribeTarget.goldReward} ⚜</span> in tribute?
+            </p>
+            <div className="confirm-actions">
+              <button
+                className="bevel-btn"
+                onClick={() => setInscribeTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="bevel-btn"
+                style={{ borderColor: 'var(--color-gold)', color: 'var(--color-gold)' }}
+                onClick={handleInscribeConfirm}
+              >
+                Inscribe
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm delete dialog */}
       {confirmDelete && (
