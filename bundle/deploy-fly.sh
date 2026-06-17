@@ -18,18 +18,26 @@ APP_NAME="${APP_NAME:-octiron}"
 read -rp "Region [ams]: " REGION
 REGION="${REGION:-ams}"
 
-# Prompt for password
-read -rsp "Admin password (used to log in to all apps): " ADMIN_PASSWORD
-echo
-read -rsp "Confirm password: " ADMIN_PASSWORD_CONFIRM
-echo
-if [[ -z "$ADMIN_PASSWORD" ]]; then
-  echo "Password cannot be empty."
-  exit 1
+# Check if the app already exists
+IS_NEW_APP=true
+if fly apps list 2>/dev/null | grep -q "^$APP_NAME\b"; then
+  IS_NEW_APP=false
 fi
-if [[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]]; then
-  echo "Passwords do not match."
-  exit 1
+
+if $IS_NEW_APP; then
+  # Prompt for password only on first deploy
+  read -rsp "Admin password (used to log in to all apps): " ADMIN_PASSWORD
+  echo
+  read -rsp "Confirm password: " ADMIN_PASSWORD_CONFIRM
+  echo
+  if [[ -z "$ADMIN_PASSWORD" ]]; then
+    echo "Password cannot be empty."
+    exit 1
+  fi
+  if [[ "$ADMIN_PASSWORD" != "$ADMIN_PASSWORD_CONFIRM" ]]; then
+    echo "Passwords do not match."
+    exit 1
+  fi
 fi
 
 # Update fly.toml with chosen name and region
@@ -37,10 +45,13 @@ sed -i "s/^app = .*/app = \"$APP_NAME\"/" bundle/fly.toml
 sed -i "s/^primary_region = .*/primary_region = \"$REGION\"/" bundle/fly.toml
 
 # Create the app (skip if it already exists)
-fly apps create "$APP_NAME" 2>/dev/null || echo "App $APP_NAME already exists, continuing."
-
-# Set the password secret
-fly secrets set ADMIN_PASSWORD="$ADMIN_PASSWORD" --app "$APP_NAME"
+if $IS_NEW_APP; then
+  fly apps create "$APP_NAME" 2>/dev/null || echo "App $APP_NAME already exists, continuing."
+  # Set the password secret on new deployments only
+  fly secrets set ADMIN_PASSWORD="$ADMIN_PASSWORD" --app "$APP_NAME"
+else
+  echo "App $APP_NAME already exists — skipping password update."
+fi
 
 # Create the data volume if it doesn't exist
 if ! fly volumes list --app "$APP_NAME" 2>/dev/null | grep -q octiron_data; then
