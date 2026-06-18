@@ -88,7 +88,7 @@ function MemberCard({ member, onCheer, onRemove, cheerLoading, removeLoading, go
     : null;
 
   const alreadyCheered = member.lastCheerSentAt === today;
-  const canCheer = !alreadyCheered && gold >= 25;
+  const canCheer = !alreadyCheered && gold >= 100;
   const hpColor = hp === null ? 'var(--color-border)' : hp > 70 ? '#4caf7d' : hp > 30 ? '#e0a040' : '#e05555';
 
   return (
@@ -108,7 +108,7 @@ function MemberCard({ member, onCheer, onRemove, cheerLoading, removeLoading, go
             style={{ padding: '5px 10px', fontSize: '0.72rem' }}
             onClick={onCheer}
             disabled={cheerLoading || !canCheer}
-            title={alreadyCheered ? 'Already cheered today' : gold < 25 ? 'Need 25 gold' : 'Cheer (+5 HP, costs 25 gold)'}
+            title={alreadyCheered ? 'Already cheered today' : gold < 100 ? 'Need 100 gold' : 'Cheer (+15 HP, costs 100 gold)'}
           >
             {cheerLoading ? '...' : alreadyCheered ? '✓ Cheered' : '♡ Cheer'}
           </button>
@@ -376,7 +376,7 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
   const today = getTodayStr();
   const todayDow = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
 
-  const activeHabits = habits.filter(h => h.active);
+  const activeHabits = habits.filter(h => h.active && !h.inscribed);
 
   const dueHabits = activeHabits
     .filter(h => {
@@ -397,6 +397,8 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
   const allDueCompleted = dueHabits.length > 0 && dueHabits.every(h => completedIds.has(h.id));
 
   const forsaken = hp <= 0;
+  const cheersToday = party?.cheersReceivedToday ?? [];
+  const cheeredToday = cheersToday.length > 0;
 
   return (
     <div className="page-content">
@@ -410,6 +412,25 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
           </div>
         )}
       </div>
+      {cheeredToday && (
+        <div style={{
+          border: '2px solid var(--color-border-glow)',
+          background: 'linear-gradient(135deg, #1c1408 0%, #2a1e08 50%, #1c1408 100%)',
+          boxShadow: '0 0 18px rgba(240,192,64,0.25), inset 0 1px 0 var(--color-border-hi)',
+          padding: '10px 16px',
+          marginBottom: '14px',
+          textAlign: 'center',
+        }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: '0.8rem', color: 'var(--color-border-glow)', letterSpacing: '0.15em' }}>
+            ✦ &nbsp; AN ALLY CHEERED YOU ON &nbsp; ✦
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
+            {cheersToday.length === 1
+              ? 'A party member rallied behind you today, restoring your vigour.'
+              : `${cheersToday.length} allies rallied behind you today, restoring your vigour.`}
+          </div>
+        </div>
+      )}
       {randomEvent && (
         <RandomEventCard
           event={randomEvent}
