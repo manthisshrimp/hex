@@ -9,11 +9,23 @@ function importanceIcon(imp) {
   return imp === 'low' ? '◆' : imp === 'medium' ? '◆◆' : '◆◆◆'
 }
 
-function bleedIcon(healthRemoved) {
-  if (!healthRemoved || healthRemoved <= 0) return null
-  if (healthRemoved <= 17) return '▾'
-  if (healthRemoved <= 34) return '▾▾'
-  return '▾▾▾'
+function bleedCount(healthRemoved) {
+  if (!healthRemoved || healthRemoved <= 0) return 0
+  if (healthRemoved <= 17) return 1
+  if (healthRemoved <= 34) return 2
+  return 3
+}
+
+function BleedDrops({ healthRemoved }) {
+  const count = bleedCount(healthRemoved)
+  if (!count) return null
+  return (
+    <span className="habit-bleed-drops">
+      {Array.from({ length: count }, (_, i) => (
+        <span key={i} className="habit-bleed-drop" />
+      ))}
+    </span>
+  )
 }
 
 const KEBAB_CLOSE = 'kebab-close-all'
@@ -176,7 +188,8 @@ export default function HabitCard({
         .complete-btn { width: 100%; padding: 8px; font-size: 0.85rem; }
         .reschedule-btn { width: 100%; padding: 8px; font-size: 0.8rem; color: var(--color-text-muted); }
         .habit-imp-icon { font-style: normal; letter-spacing: 0.05em; }
-        .habit-bleed-icon { color: #cc2222; font-size: 0.75rem; letter-spacing: -0.05em; flex-shrink: 0; }
+        .habit-bleed-drops { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+        .habit-bleed-drop { display: inline-block; width: 7px; height: 7px; background: linear-gradient(135deg, #ff4444, #991111); border-radius: 50% 0 50% 50%; transform: rotate(-45deg); box-shadow: 0 1px 3px rgba(180,0,0,0.5); }
         .kebab-btn { background: none; border: none; color: var(--color-text-muted); font-size: 1.2rem; line-height: 1; padding: 0 2px; cursor: pointer; flex-shrink: 0; }
         .kebab-btn:hover { color: var(--color-text); }
         .kebab-menu { min-width: 110px; background: var(--color-surface-mid); border: 1px solid var(--color-border); border-radius: 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-direction: column; }
@@ -204,9 +217,7 @@ export default function HabitCard({
       >
         {/* Header row */}
         <div className="habit-card-header">
-          {bleedIcon(habit.healthRemoved) && (
-            <span className="habit-bleed-icon">{bleedIcon(habit.healthRemoved)}</span>
-          )}
+          <BleedDrops healthRemoved={habit.healthRemoved} />
           <span className="habit-name" style={habit.inscribed ? undefined : { color: IMP_COLOR[habit.importance] }}>
             {habit.name}
           </span>
