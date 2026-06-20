@@ -27,6 +27,11 @@ pub struct DeadlineUpdate {
     pub new_deadline: NaiveDate,
 }
 
+pub struct HabitHealthUpdate {
+    pub habit_id: String,
+    pub new_health_removed: f64,
+}
+
 pub struct TickOutput {
     /// New HP, clamped to [0, max_hp].
     pub new_hp: f64,
@@ -40,6 +45,8 @@ pub struct TickOutput {
     pub gold_events: Vec<GoldEvent>,
     /// Deadline changes to persist.
     pub deadline_updates: Vec<DeadlineUpdate>,
+    /// Updated health_removed values to write back to each habit.
+    pub habit_health_updates: Vec<HabitHealthUpdate>,
 }
 
 // ── Tick engine ───────────────────────────────────────────────────────────────
@@ -56,6 +63,7 @@ pub fn process_tick(input: TickInput) -> TickOutput {
     let mut health_events: Vec<HealthEvent> = Vec::new();
     let mut gold_events: Vec<GoldEvent> = Vec::new();
     let mut deadline_updates: Vec<DeadlineUpdate> = Vec::new();
+    let mut habit_health_updates: Vec<HabitHealthUpdate> = Vec::new();
 
     for habit in &input.habits {
         // Only process active, non-inscribed habits.
@@ -77,6 +85,9 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         // maturity == consistency (per RULES.md)
         let maturity = consistency;
 
+        // Running health_removed for this habit this tick.
+        let mut cur_health_removed = habit.health_removed;
+
         // ── Step 1: Check for missed deadline (damage) ────────────────────
         // A deadline is missed when it is strictly before the current tick date.
         if let Some(&deadline) = input.deadlines.get(&habit.id) {
@@ -84,6 +95,7 @@ pub fn process_tick(input: TickInput) -> TickOutput {
                 // Damage
                 let damage = miss_damage(config, &habit.importance, maturity);
                 hp_delta -= damage;
+                cur_health_removed += damage;
                 health_events.push(HealthEvent {
                     id: Uuid::new_v4().to_string(),
                     event_type: "damage".to_string(),
@@ -104,19 +116,30 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         }
 
         // ── Step 2: Passive gold (or healing when injured) ───────────────
+        // Healing is capped by health_removed (the HP debt this habit owes back).
+        // Once the debt is cleared, the habit heals at only 5% of its full rate.
         let passive = passive_gold(config, &habit.importance, consistency);
         let hp_before_delta = input.current_hp + hp_delta;
         if hp_before_delta > 0.0 && hp_before_delta < config.max_hp {
-            let heal = passive * config.passive_gold_heal_rate;
-            hp_delta += heal;
-            health_events.push(HealthEvent {
-                id: Uuid::new_v4().to_string(),
-                event_type: "regen".to_string(),
-                amount: heal,
-                reason: format!("healing: {}", habit.name),
-                habit_id: Some(habit.id.clone()),
-                tick_date: date_str.clone(),
-            });
+            let full_heal = passive * config.passive_gold_heal_rate;
+            let heal = if cur_health_removed > 0.0 {
+                let capped = full_heal.min(cur_health_removed);
+                cur_health_removed -= capped;
+                capped
+            } else {
+                full_heal * 0.05
+            };
+            if heal > 0.0 {
+                hp_delta += heal;
+                health_events.push(HealthEvent {
+                    id: Uuid::new_v4().to_string(),
+                    event_type: "regen".to_string(),
+                    amount: heal,
+                    reason: format!("healing: {}", habit.name),
+                    habit_id: Some(habit.id.clone()),
+                    tick_date: date_str.clone(),
+                });
+            }
         } else {
             gold_delta += passive;
             gold_events.push(GoldEvent {
@@ -128,6 +151,11 @@ pub fn process_tick(input: TickInput) -> TickOutput {
                 timestamp: format!("{}T00:00:00Z", date_str),
             });
         }
+
+        habit_health_updates.push(HabitHealthUpdate {
+            habit_id: habit.id.clone(),
+            new_health_removed: cur_health_removed,
+        });
     }
 
     // ── Finalise HP, gold, and renown ────────────────────────────────────────
@@ -142,6 +170,7 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         health_events,
         gold_events,
         deadline_updates,
+        habit_health_updates,
     }
 }
 
@@ -173,6 +202,7 @@ mod tests {
             show_on_days: None,
             inscribed: false,
             inscribed_at: None,
+            health_removed: 0.0,
         }
     }
 
@@ -191,6 +221,7 @@ mod tests {
             show_on_days: None,
             inscribed: false,
             inscribed_at: None,
+            health_removed: 0.0,
         }
     }
 

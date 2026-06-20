@@ -93,6 +93,7 @@ export default function HabitCard({
   completed,
 }) {
   const cardRef = useRef()
+  const [showDevInfo, setShowDevInfo] = useState(false)
 
   const handleComplete = async () => {
     await onComplete()
@@ -104,9 +105,12 @@ export default function HabitCard({
     }
   }
 
+  const devInfoItem = { label: 'Dev Info', onClick: () => setShowDevInfo(v => !v) }
+
   const menuItems = habit.system ? [] : habit.inscribed
     ? [
         ...(onRestore ? [{ label: 'Restore', onClick: onRestore }] : []),
+        devInfoItem,
       ]
     : habit.active
     ? [
@@ -117,10 +121,12 @@ export default function HabitCard({
         ...(onInscribe && consistency >= 1 ? [{ label: 'Inscribe', onClick: onInscribe }] : []),
         ...(onPause ? [{ label: 'Pause',  onClick: onPause }] : []),
         ...(onDelete ? [{ label: 'Delete', danger: true, onClick: onDelete }] : []),
+        devInfoItem,
       ]
     : [
         ...(onResume ? [{ label: 'Resume', onClick: onResume }] : []),
         ...(onDelete ? [{ label: 'Delete', danger: true, onClick: onDelete }] : []),
+        devInfoItem,
       ]
 
   return (
@@ -170,6 +176,11 @@ export default function HabitCard({
         .kebab-item:hover { background: var(--color-surface-high); }
         .kebab-item.danger { color: var(--color-overdue); }
         .kebab-item.disabled { opacity: 0.4; cursor: not-allowed; }
+        .dev-info-panel { background: #111; border: 1px solid #333; border-radius: 2px; padding: 10px 12px; font-family: monospace; font-size: 0.72rem; line-height: 1.8; color: #888; }
+        .dev-info-row { display: flex; justify-content: space-between; gap: 16px; }
+        .dev-info-key { color: #555; }
+        .dev-info-val { color: #aaa; text-align: right; }
+        .dev-info-val.negative { color: #e05555; }
       `}</style>
 
       <div
@@ -254,6 +265,27 @@ export default function HabitCard({
         {/* Completed state */}
         {completed && !habit.inscribed && (
           <div className="habit-completed-rune">✦ Quest Complete</div>
+        )}
+
+        {/* Dev info panel */}
+        {showDevInfo && (
+          <div className="dev-info-panel">
+            {[
+              ['hp debt',      `−${fmtNum(habit.healthRemoved ?? 0, 1)}`, true],
+              ['mastery',      `${((consistency ?? 0) * 100).toFixed(1)}%`, false],
+              ['passive/day',  `⚜ ${fmtNum(passiveGold ?? 0, 2)}`, false],
+              ['completion',   `⚜ ~${fmtNum(Math.floor(completionGold ?? 0))}`, false],
+              ['streak',       streak ?? 0, false],
+              ['deadline',     nextDeadline ?? '—', false],
+              ['importance',   habit.importance ?? '—', false],
+              ['id',           habit.id, false],
+            ].map(([key, val, neg]) => (
+              <div key={key} className="dev-info-row">
+                <span className="dev-info-key">{key}</span>
+                <span className={`dev-info-val${neg ? ' negative' : ''}`}>{val}</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </>

@@ -45,6 +45,7 @@ impl HabitsStore {
                 show_on_days: None,
                 inscribed: false,
                 inscribed_at: None,
+                health_removed: 0.0,
             };
             let defaults = vec![seed];
             let content = defaults.iter()
@@ -84,6 +85,7 @@ impl HabitsStore {
                 show_on_days: req.show_on_days.filter(|d| !d.is_empty()),
                 inscribed: false,
                 inscribed_at: None,
+                health_removed: 0.0,
             };
             cache.push(habit.clone());
             habit
@@ -209,6 +211,16 @@ impl HabitsStore {
         };
         self.persist().await?;
         Ok(updated)
+    }
+
+    pub async fn update_health_removed(&self, id: &str, value: f64) -> Result<(), AppError> {
+        {
+            let mut cache = self.cache.lock().unwrap();
+            if let Some(habit) = cache.iter_mut().find(|h| h.id == id) {
+                habit.health_removed = value.max(0.0);
+            }
+        }
+        self.persist().await
     }
 
     /// Shift all habit `created_at` dates back by `days` days (for debug time simulation).

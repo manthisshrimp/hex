@@ -131,6 +131,9 @@ pub async fn get_character(
                     &update.new_deadline.format("%Y-%m-%d").to_string(),
                 ).await?;
             }
+            for update in output.habit_health_updates {
+                state.store.habits.update_health_removed(&update.habit_id, update.new_health_removed).await?;
+            }
 
             current_character.hp = output.new_hp;
             current_character.gold = output.new_gold;
@@ -249,6 +252,9 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
             &update.habit_id,
             &update.new_deadline.format("%Y-%m-%d").to_string(),
         ).await?;
+    }
+    for update in output.habit_health_updates {
+        state.store.habits.update_health_removed(&update.habit_id, update.new_health_removed).await?;
     }
 
     current_character.hp = output.new_hp;

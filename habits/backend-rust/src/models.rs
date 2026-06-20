@@ -33,6 +33,8 @@ pub struct Habit {
     pub inscribed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inscribed_at: Option<String>,   // ISO datetime when the habit was inscribed
+    #[serde(default)]
+    pub health_removed: f64,            // cumulative HP drained by misses; caps passive healing
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
