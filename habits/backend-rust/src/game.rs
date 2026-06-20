@@ -87,10 +87,10 @@ pub fn daily_regen(config: &GameConfig, importance: &Importance, consistency: f6
     config.base_regen * importance_weight(config, importance) * consistency
 }
 
-/// HP damage on miss: BASE_DAMAGE × importance_weight × maturity
+/// HP damage on miss: BASE_DAMAGE × importance_weight × maturity, minimum 5
 /// maturity == consistency per RULES.md
 pub fn miss_damage(config: &GameConfig, importance: &Importance, maturity: f64) -> f64 {
-    config.base_damage * importance_weight(config, importance) * maturity
+    (config.base_damage * importance_weight(config, importance) * maturity).max(5.0)
 }
 
 /// Gold awarded on completion: 2× base while the habit has < 7 distinct completed days
@@ -298,8 +298,8 @@ mod tests {
     // ── miss_damage ──────────────────────────────────────────────────────────
 
     #[test]
-    fn damage_at_zero_maturity_is_zero() {
-        assert_eq!(miss_damage(&cfg(), &Importance::High, 0.0), 0.0);
+    fn damage_at_zero_maturity_is_minimum() {
+        assert_eq!(miss_damage(&cfg(), &Importance::High, 0.0), 5.0);
     }
 
     #[test]

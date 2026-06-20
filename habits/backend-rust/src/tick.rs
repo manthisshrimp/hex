@@ -247,17 +247,17 @@ mod tests {
         };
         let out = process_tick(input);
 
-        // At 0% maturity, damage = 0 and regen = 0.
-        assert_eq!(out.new_hp, 50.0);
+        // At 0% maturity, damage = minimum (5) and regen = 0.
+        assert_eq!(out.new_hp, 45.0);
         // Missed deadline should advance by window_days.
         assert_eq!(out.deadline_updates.len(), 1);
         assert_eq!(out.deadline_updates[0].new_deadline, date("2026-04-25"));
-        // Damage event is still emitted (amount 0).
+        // Damage event is emitted with minimum amount.
         let damage_events: Vec<_> = out.health_events.iter()
             .filter(|e| e.event_type == "damage")
             .collect();
         assert_eq!(damage_events.len(), 1);
-        assert_eq!(damage_events[0].amount, 0.0);
+        assert_eq!(damage_events[0].amount, 5.0);
     }
 
     // ── Established habit miss: causes damage ────────────────────────────────
