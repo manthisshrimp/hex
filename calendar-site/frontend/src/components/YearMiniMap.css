@@ -2,7 +2,13 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  /* Reserve a fixed lane for the scrollbar so it never overlaps the rightmost
+     day cell when past weeks overflow the panel. */
+  scrollbar-gutter: stable;
   flex: 1;
+  /* min-height:0 is required for a flex child to become a scroll viewport —
+     without it the element grows to its content height instead of scrolling. */
+  min-height: 0;
   margin: 0;
   padding: 0;
 }
@@ -35,16 +41,27 @@
   white-space: nowrap;
 }
 
-/* Week rows share height equally; width grows to fit label + 7 square cells */
+/* Week rows use a fixed height (set via --minimap-row-h) so the container can
+   overflow when past weeks are lazy-loaded, enabling scroll. */
 .minimap-week-row {
   display: flex;
   align-items: stretch;
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  height: var(--minimap-row-h);
+  position: relative;
 }
 
-.minimap-week-row.month-boundary {
-  border-top: 1px solid var(--color-border);
+/* Month divider drawn as an overlay line so it adds no box height — a real
+   border would shrink the square day cells and indent the row. */
+.minimap-week-row.month-boundary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-border);
+  pointer-events: none;
 }
 
 .minimap-week-row.scrolled-week {
@@ -67,7 +84,7 @@
   color: var(--color-text-muted);
   white-space: nowrap;
   flex-shrink: 0;
-  width: 32px;
+  width: var(--minimap-label-w, 32px);
   display: flex;
   align-items: center;
   justify-content: flex-end;

@@ -38,9 +38,11 @@ function App() {
     setAuth(token);
   };
 
+  // Span previous → next year so the minimap's back-scroll and the imported
+  // next-year public holidays both have their events loaded.
   const yearRange = () => {
     const year = new Date().getFullYear();
-    return { start: `${year}-01-01`, end: `${year}-12-31` };
+    return { start: `${year - 1}-01-01`, end: `${year + 1}-12-31` };
   };
 
   const handleFormSave = async (formData) => {
@@ -69,8 +71,7 @@ function App() {
 
   useEffect(() => {
     if (!authToken) return;
-    const year = new Date().getFullYear();
-    refresh({ start: `${year}-01-01`, end: `${year}-12-31` });
+    refresh(yearRange());
   }, [authToken, refresh]);
 
   if (!authToken) {

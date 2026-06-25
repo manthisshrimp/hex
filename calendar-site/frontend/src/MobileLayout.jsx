@@ -44,6 +44,7 @@ function MobileListView({ selectedDate, setSelectedDate, events, loading, catego
         {/* Compact Year MiniMap */}
         <div className="mobile-year-minimap">
           <YearMiniMap
+            compact
             events={events}
             categories={categories}
             selectedDate={selectedDate}

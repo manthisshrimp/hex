@@ -15,6 +15,10 @@
   overflow: visible;
   display: flex;
   flex-direction: column;
+  /* Stay pinned to the 100vh grid track so the inner minimap can scroll
+     instead of the panel growing to its content height. */
+  min-height: 0;
+  height: 100vh;
 }
 
 .year-panel-settings {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, useMemo } from 'react';
 import './YearMiniMap.css';
 
 function dateToStr(d) {
@@ -27,7 +27,6 @@ function generateWeeks(monthsBack = 1, monthsAhead = 12) {
   const weeks = [];
   while (cur <= rangeEnd) {
     const mondayStr = dateToStr(cur);
-    // Build 7 day date strings: Mon–Sun
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(cur);
@@ -78,7 +77,6 @@ function buildChainMap(weeks, events, categories) {
   const getNonWorkingEvent = (date) => events.find(e => e.date === date && nonWorkingCatIds.has(e.categoryId));
   const isNonWorking = (date) => isWeekend(date) || !!getNonWorkingEvent(date);
 
-  // Build consecutive runs of non-working days
   const runs = [];
   let cur = null;
   for (const date of allDays) {
@@ -87,7 +85,6 @@ function buildChainMap(weeks, events, categories) {
   }
   if (cur) runs.push(cur);
 
-  // Only runs with at least one holiday/vacation event AND length > 1
   const map = {};
   for (const run of runs) {
     const firstEventDate = run.find(d => getNonWorkingEvent(d));
@@ -105,39 +102,83 @@ function buildChainMap(weeks, events, categories) {
   return map;
 }
 
-export default function YearMiniMap({ events = [], categories = [], selectedDate, scrolledDate, onDayClick }) {
+// Fixed pixel height per week row. Kept constant (not fit-to-container) so that
+// loading more past weeks always adds real height — that overflow is what makes
+// the panel scrollable. Width is label column + 7 square day cells. `compact`
+// (mobile) shrinks both the cells and the label to take less horizontal space.
+const ROW_H = { default: 14, compact: 11 };
+const LABEL_W = { default: 32, compact: 26 };
+const MONTHS_PER_LOAD = 6;
+const MAX_MONTHS_BACK = 120;
+
+export default function YearMiniMap({ events = [], categories = [], selectedDate, scrolledDate, onDayClick, compact = false }) {
+  const rowH = compact ? ROW_H.compact : ROW_H.default;
+  const labelW = compact ? LABEL_W.compact : LABEL_W.default;
+  const minimapWidth = labelW + 7 * rowH;
   const [tooltip, setTooltip] = useState(null);
+  const [monthsBack, setMonthsBack] = useState(2);
   const wrapperRef = useRef(null);
-  const weeks = generateWeeks(1, 12);
-
-  const chainMap = buildChainMap(weeks, events, categories);
-
-  // Auto-scroll year map to keep the scrolled week visible
+  const topSentinelRef = useRef(null);
+  const prevScrollHeightRef = useRef(null);
   const prevScrolledWeekRef = useRef(null);
+  const bootstrapping = useRef(true);
+
+  const weeks = useMemo(() => generateWeeks(monthsBack, 12), [monthsBack]);
+  const chainMap = useMemo(() => buildChainMap(weeks, events, categories), [weeks, events, categories]);
+
+  const scrollToWeek = (startDate, behavior = 'auto') => {
+    const c = wrapperRef.current;
+    if (!c) return;
+    const el = c.querySelector(`[data-week-start="${startDate}"]`);
+    if (el) c.scrollTo({ top: el.offsetTop, behavior });
+  };
+
+  // Restore scroll position after prepending past weeks (user-driven loads only).
+  useLayoutEffect(() => {
+    const container = wrapperRef.current;
+    if (!container || prevScrollHeightRef.current == null) return;
+    container.scrollTop += container.scrollHeight - prevScrollHeightRef.current;
+    prevScrollHeightRef.current = null;
+  }, [monthsBack]);
+
+  // Bootstrap: ensure the list overflows the panel, then land on today's week.
+  // Runs after each render until overflow is reached. Because ROW_H is fixed,
+  // each extra batch adds real height, so this terminates with a scrollbar.
+  useLayoutEffect(() => {
+    const c = wrapperRef.current;
+    if (!c || !bootstrapping.current) return;
+    if (c.scrollHeight <= c.clientHeight + 1 && monthsBack < MAX_MONTHS_BACK) {
+      setMonthsBack(m => m + MONTHS_PER_LOAD);
+      return;
+    }
+    bootstrapping.current = false;
+    const current = weeks.find(w => w.isCurrentWeek);
+    if (current) scrollToWeek(current.startDate);
+  }, [monthsBack, weeks]);
+
+  // Top sentinel — load more past weeks when the user scrolls to the top.
   useEffect(() => {
-    if (!scrolledDate || !wrapperRef.current) return;
+    const el = topSentinelRef.current;
+    const root = wrapperRef.current;
+    if (!el || !root) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (bootstrapping.current || !entries[0].isIntersecting) return;
+      prevScrollHeightRef.current = root.scrollHeight;
+      setMonthsBack(m => m + MONTHS_PER_LOAD);
+    }, { root, threshold: 0.1 });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Auto-scroll minimap to keep the scrolled week in view
+  useEffect(() => {
+    if (bootstrapping.current || !scrolledDate || !wrapperRef.current) return;
     const week = weeks.find(w => scrolledDate >= w.startDate && scrolledDate <= w.endDate);
     if (!week || week.startDate === prevScrolledWeekRef.current) return;
     prevScrolledWeekRef.current = week.startDate;
     const el = wrapperRef.current.querySelector(`[data-week-start="${week.startDate}"]`);
     if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [scrolledDate, weeks]);
-
-  // Measure height and compute width so square cells fill the panel without overflow
-  useLayoutEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const numBoundaries = weeks.filter(w => w.isYearBoundary).length;
-    const update = () => {
-      const h = el.getBoundingClientRect().height;
-      const rowH = (h - numBoundaries * 14) / weeks.length;
-      el.style.width = `${32 + 7 * rowH}px`;
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [weeks.length]);
 
   const handleDayMouseEnter = (e, date) => {
     const dayEvents = events.filter(ev => ev.date === date);
@@ -157,7 +198,14 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
   };
 
   return (
-    <div className="year-minimap" ref={wrapperRef}>
+    <div
+      className="year-minimap"
+      ref={wrapperRef}
+      style={{ width: minimapWidth, '--minimap-row-h': `${rowH}px`, '--minimap-label-w': `${labelW}px` }}
+    >
+      {/* Top sentinel — triggers loading more past weeks */}
+      <div ref={topSentinelRef} style={{ height: 1, flexShrink: 0 }} />
+
       {weeks.map(week => {
         const label = `${String(week.monthNum).padStart(2, '0')}|${String(week.weekNum).padStart(2, '0')}`;
         const isScrolledWeek = scrolledDate >= week.startDate && scrolledDate <= week.endDate;
