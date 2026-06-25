@@ -131,7 +131,7 @@ export default function HistoryPage() {
 
   // Only show active habits in heatmap, sorted by active days (completions + covered) ascending
   const heatmapHabits = [...habits]
-    .filter(h => h.active)
+    .filter(h => h.active && !h.inscribed)
     .sort((a, b) => {
       const completionsA = completionsByHabit[a.id] ?? new Set();
       const completionsB = completionsByHabit[b.id] ?? new Set();

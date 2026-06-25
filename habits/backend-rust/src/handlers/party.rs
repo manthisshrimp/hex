@@ -94,7 +94,13 @@ pub async fn get_party(
     }
 
     state.store.party.save(party.clone()).await?;
-    Ok(Json(json!({ "members": party.members })))
+    let today = game::today_str();
+    let cheers_received_today: Vec<_> = party
+        .cheers_received_log
+        .iter()
+        .filter(|c| c.date == today)
+        .collect();
+    Ok(Json(json!({ "members": party.members, "cheersReceivedToday": cheers_received_today })))
 }
 
 // ── POST /api/party/members (auth) ───────────────────────────────────────────
@@ -250,11 +256,11 @@ pub async fn cheer(
     }
 
     // Validate gold
-    let cheer_cost = 25.0f64;
+    let cheer_cost = 100.0f64;
     {
         let character = state.store.character.get();
         if character.gold < cheer_cost {
-            return Err(AppError::Validation("Not enough gold (need 25)".to_string()));
+            return Err(AppError::Validation("Not enough gold (need 100)".to_string()));
         }
     }
 
@@ -327,7 +333,7 @@ pub async fn receive_cheer(
 
     // Award HP
     let mut character = state.store.character.get();
-    let hp_gain = 5.0f64;
+    let hp_gain = 15.0f64;
     let actual_gain = hp_gain.min(100.0 - character.hp).max(0.0);
     character.hp = (character.hp + hp_gain).min(100.0);
 

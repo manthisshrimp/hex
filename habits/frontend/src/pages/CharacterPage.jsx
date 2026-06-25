@@ -181,9 +181,11 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
   const unequippedInventory = inventory.filter(i => !equippedIds.has(i.id));
   const ownedIds = new Set(inventory.map(i => i.id));
 
+  const armoury2Active = tab === 'equipped' || tab === 'inventory';
+
   return (
     <div className="page-content">
-      {/* Tab row */}
+      {/* Tab row — visible on mobile only */}
       <div className="armoury-tabs-row">
         {TABS.map(t => (
           <button
@@ -206,9 +208,9 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
         ))}
       </div>
 
-      {/* ── Character tab ── */}
-      {tab === 'character' && (
-        <div>
+      <div className="armoury-cols">
+        {/* ── Column 1: Character ── */}
+        <div className={`armoury-col${tab !== 'character' ? ' armoury-col-hidden' : ''}`}>
           <SectionHeader>CHARACTER</SectionHeader>
           <div className="stone-panel" style={{ padding: '16px', marginBottom: '12px' }}>
             <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
@@ -272,76 +274,68 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
             </div>
           </div>
         </div>
-      )}
 
-      {/* ── Equipped tab ── */}
-      {tab === 'equipped' && (
-        eqLoading ? <div className="loading-state">Loading armoury...</div> :
-        eqError ? <div className="empty-state">Failed to load: {eqError}</div> : (
-          <div>
-            <SectionHeader>EQUIPPED GEAR</SectionHeader>
-            {ALL_SLOTS.map(slot => (
-              <SlotRow key={slot} slotKey={slot} item={equippedMap[slot] || null} onUnequip={handleUnequip} />
-            ))}
-          </div>
-        )
-      )}
+        {/* ── Column 2: Equipped + Inventory ── */}
+        <div className={`armoury-col${!armoury2Active ? ' armoury-col-hidden' : ''}`}>
+          {eqLoading ? <div className="loading-state">Loading armoury...</div> :
+          eqError ? <div className="empty-state">Failed to load: {eqError}</div> : (
+            <>
+              <SectionHeader>EQUIPPED GEAR</SectionHeader>
+              {ALL_SLOTS.map(slot => (
+                <SlotRow key={slot} slotKey={slot} item={equippedMap[slot] || null} onUnequip={handleUnequip} />
+              ))}
 
-      {/* ── Inventory tab ── */}
-      {tab === 'inventory' && (
-        eqLoading ? <div className="loading-state">Loading armoury...</div> :
-        eqError ? <div className="empty-state">Failed to load: {eqError}</div> : (
-          <div>
-            <SectionHeader>INVENTORY</SectionHeader>
-            {unequippedInventory.length === 0 ? (
-              <div className="empty-state">No items in inventory — visit the Shop.</div>
-            ) : (
-              unequippedInventory.map(item => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  actionLabel="Equip"
-                  actionDisabled={equipping === item.id}
-                  onAction={() => handleEquip(item.id)}
-                />
-              ))
-            )}
-          </div>
-        )
-      )}
-
-      {/* ── Shop tab ── */}
-      {tab === 'shop' && (
-        eqLoading ? <div className="loading-state">Loading shop...</div> :
-        eqError ? <div className="empty-state">Failed to load: {eqError}</div> : (
-          <div>
-            <SectionHeader>WEEKLY SHOP — {shop?.week || ''}</SectionHeader>
-            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: '12px' }}>
-              Refreshes each week. Treasury: ⚜ {fmtNum(Math.floor(gold))}
-            </div>
-            {shopItems.length === 0 ? (
-              <div className="empty-state">Shop is empty this week.</div>
-            ) : (
-              shopItems.map(item => {
-                const owned = ownedIds.has(item.id);
-                const hasRenown = !item.requiredRenown || (renown ?? 0) >= item.requiredRenown;
-                const canAfford = gold >= item.price;
-                const label = owned ? 'Owned' : !hasRenown ? `✦ ${item.requiredRenown} renown` : `⚜ ${fmtNum(item.price)}`;
-                return (
+              <div style={{ marginTop: '20px' }}><SectionHeader>INVENTORY</SectionHeader></div>
+              {unequippedInventory.length === 0 ? (
+                <div className="empty-state">No items in inventory — visit the Shop.</div>
+              ) : (
+                unequippedInventory.map(item => (
                   <ItemCard
                     key={item.id}
                     item={item}
-                    dimmed={owned || !hasRenown}
-                    actionLabel={label}
-                    actionDisabled={owned || !hasRenown || !canAfford || buying === item.id}
-                    onAction={() => handleBuy(item.id)}
+                    actionLabel="Equip"
+                    actionDisabled={equipping === item.id}
+                    onAction={() => handleEquip(item.id)}
                   />
-                );
-              })
-            )}
-          </div>
-        )
-      )}
+                ))
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ── Column 3: Shop ── */}
+        <div className={`armoury-col${tab !== 'shop' ? ' armoury-col-hidden' : ''}`}>
+          {eqLoading ? <div className="loading-state">Loading shop...</div> :
+          eqError ? <div className="empty-state">Failed to load: {eqError}</div> : (
+            <>
+              <SectionHeader>WEEKLY SHOP — {shop?.week || ''}</SectionHeader>
+              <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: '12px' }}>
+                Refreshes each week. Treasury: ⚜ {fmtNum(Math.floor(gold))}
+              </div>
+              {shopItems.length === 0 ? (
+                <div className="empty-state">Shop is empty this week.</div>
+              ) : (
+                shopItems.map(item => {
+                  const owned = ownedIds.has(item.id);
+                  const hasRenown = !item.requiredRenown || (renown ?? 0) >= item.requiredRenown;
+                  const canAfford = gold >= item.price;
+                  const label = owned ? 'Owned' : !hasRenown ? `✦ ${item.requiredRenown} renown` : `⚜ ${fmtNum(item.price)}`;
+                  return (
+                    <ItemCard
+                      key={item.id}
+                      item={item}
+                      dimmed={owned || !hasRenown}
+                      actionLabel={label}
+                      actionDisabled={owned || !hasRenown || !canAfford || buying === item.id}
+                      onAction={() => handleBuy(item.id)}
+                    />
+                  );
+                })
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
