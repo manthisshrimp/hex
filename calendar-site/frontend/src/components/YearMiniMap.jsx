@@ -77,6 +77,18 @@ function getDayStyle(date, events, categories, todayStr) {
   return ev.partial ? { bg: base, stripe: col } : { bg: col, stripe: null };
 }
 
+// Leave totals for a year, matched on category name. Striped (partial) leave
+// counts as half a day.
+function computeYearStats(year, events, categories) {
+  const leaveCatIds = new Set(
+    categories.filter(c => /leave/i.test(c.name)).map(c => c.id)
+  );
+  const leave = events.filter(e => e.date.startsWith(`${year}-`) && leaveCatIds.has(e.categoryId));
+  let full = 0, half = 0;
+  for (const e of leave) { if (e.partial) half++; else full++; }
+  return { year, full, half, total: full + half * 0.5 };
+}
+
 function buildChainMap(weeks, events, categories) {
   const nonWorkingCatIds = new Set(categories.filter(c => c.isNonWorking).map(c => c.id));
   const allDays = weeks.flatMap(w => w.days);
@@ -126,6 +138,7 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
   const labelW = compact ? LABEL_W.compact : LABEL_W.default;
   const minimapWidth = labelW + 7 * rowH;
   const [tooltip, setTooltip] = useState(null);
+  const [yearStats, setYearStats] = useState(null);
   const [monthsBack, setMonthsBack] = useState(4);
   const wrapperRef = useRef(null);
   const topSentinelRef = useRef(null);
@@ -221,6 +234,13 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
       {/* Top sentinel — triggers loading more past weeks */}
       <div ref={topSentinelRef} style={{ height: 1, flexShrink: 0 }} />
 
+      {/* Leading label for the first (otherwise unmarked) year */}
+      {weeks[0] && (
+        <div className="minimap-year-boundary">
+          <span onClick={() => setYearStats(computeYearStats(weeks[0].year, events, categories))}>{weeks[0].year}</span>
+        </div>
+      )}
+
       {weeks.map(week => {
         const label = `${String(week.monthNum).padStart(2, '0')}|${String(week.weekNum).padStart(2, '0')}`;
         const isScrolledWeek = scrolledDate >= week.startDate && scrolledDate <= week.endDate;
@@ -229,7 +249,7 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
           <React.Fragment key={week.key}>
             {week.isYearBoundary && (
               <div className="minimap-year-boundary">
-                <span>{week.year}</span>
+                <span onClick={() => setYearStats(computeYearStats(week.year, events, categories))}>{week.year}</span>
               </div>
             )}
             <div
@@ -284,6 +304,22 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
           </React.Fragment>
         );
       })}
+
+      {yearStats && (
+        <div className="year-stats-backdrop" onClick={() => setYearStats(null)}>
+          <div className="year-stats-popup" onClick={e => e.stopPropagation()}>
+            <div className="year-stats-title">{yearStats.year} stats</div>
+            <div className="year-stats-row">
+              <span>Leave</span>
+              <strong>{yearStats.total} days</strong>
+            </div>
+            <div className="year-stats-sub">
+              {yearStats.full} full · {yearStats.half} half
+            </div>
+            <button className="year-stats-close" onClick={() => setYearStats(null)}>Close</button>
+          </div>
+        </div>
+      )}
 
       {tooltip && (
         <div className="minimap-tooltip" style={{ left: tooltip.x, top: tooltip.y }}>
