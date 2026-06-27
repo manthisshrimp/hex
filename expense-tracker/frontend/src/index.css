@@ -1952,6 +1952,108 @@ html, body {
   margin-top: 1.5rem;
 }
 
+/* ─── Chart tabs + panels ───────────────────────────────────────────────────── */
+.year-view__tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+.year-view__tab {
+  flex: 0 1 12rem;
+  padding: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.year-view__tab.is-active {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+.year-view__panel { display: none; }
+.year-view__panel.is-active { display: block; }
+.year-view__panel.year-view__pie-row { margin-top: 0; }
+
+/* ─── Description breakdown ──────────────────────────────────────────────────── */
+.desc-breakdown { margin-top: 1.5rem; }
+
+.desc-breakdown__title {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--color-text);
+}
+
+.desc-breakdown__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.desc-breakdown__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.desc-breakdown__chip.is-active {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.desc-breakdown__chip-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.desc-breakdown__empty { color: var(--color-text-muted); }
+
+.desc-breakdown__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.desc-breakdown__item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.desc-breakdown__item-label { color: var(--color-text); }
+.desc-breakdown__item-count { color: var(--color-text-muted); font-size: 0.85em; }
+.desc-breakdown__item-amount { color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+.desc-breakdown__bar {
+  height: 6px;
+  background: var(--color-surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.desc-breakdown__bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+}
+
 /* ─── Category Pie Chart ────────────────────────────────────────────────────── */
 .category-pie-chart {
   display: flex;

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { getYear, getCategories } from '../api.js'
 import YearLineChart from './YearLineChart.jsx'
 import CategoryPieChart from './CategoryPieChart.jsx'
+import DescriptionBreakdown from './DescriptionBreakdown.jsx'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -17,6 +18,7 @@ export default function YearView({ authToken }) {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [activeTab, setActiveTab] = useState('pie') // chart tab switcher
 
   // ── Load year and categories ─────────────────────────────────────────────────
   async function loadYear() {
@@ -100,14 +102,35 @@ export default function YearView({ authToken }) {
         </div>
       </header>
 
-      {/* ── Category Line Chart + Year Pie Chart ── */}
+      {/* ── Charts (tabbed on mobile, stacked on desktop) ── */}
       <section className="year-view__chart-section">
-        <YearLineChart
-          months={yearData.months}
-          categories={categories}
-          year={yearNum}
-        />
-        <div className="year-view__pie-row">
+        <div className="year-view__tabs" role="tablist">
+          {[
+            ['line', 'Trend'],
+            ['pie', 'Categories'],
+            ['breakdown', 'Descriptions'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              role="tab"
+              aria-selected={activeTab === key}
+              className={`year-view__tab${activeTab === key ? ' is-active' : ''}`}
+              onClick={() => setActiveTab(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className={`year-view__panel${activeTab === 'line' ? ' is-active' : ''}`}>
+          <YearLineChart
+            months={yearData.months}
+            categories={categories}
+            year={yearNum}
+          />
+        </div>
+
+        <div className={`year-view__panel year-view__pie-row${activeTab === 'pie' ? ' is-active' : ''}`}>
           <CategoryPieChart
             expenses={allExpenses}
             categories={categories}
@@ -115,6 +138,10 @@ export default function YearView({ authToken }) {
             size={280}
             layout="horizontal"
           />
+        </div>
+
+        <div className={`year-view__panel${activeTab === 'breakdown' ? ' is-active' : ''}`}>
+          <DescriptionBreakdown expenses={allExpenses} categories={categories} />
         </div>
       </section>
 
