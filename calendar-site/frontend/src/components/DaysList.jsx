@@ -45,6 +45,20 @@ const DaysList = forwardRef(function DaysList({
   // Prevent top observer from firing immediately on mount
   const readyForTopLoad = useRef(false);
   const initialScrollDone = useRef(false);
+  // After a selection we set the highlight explicitly; ignore scroll-driven
+  // sync briefly so the programmatic scroll (and any lazy-load prepend it
+  // triggers) can't clobber the highlight onto the wrong week.
+  const suppressSyncUntil = useRef(0);
+
+  // Selecting a day highlights that day's week directly — independent of where
+  // the programmatic scroll actually lands.
+  useEffect(() => {
+    if (!selectedDate) return;
+    const mon = getMondayStr(selectedDate);
+    setCurrentScrollDate(mon);
+    if (onScrollWeek) onScrollWeek(mon);
+    suppressSyncUntil.current = Date.now() + 900;
+  }, [selectedDate, onScrollWeek]);
 
   // Group flat days array into weeks keyed by Monday date string
   const weekGroups = useMemo(() => {
@@ -126,15 +140,24 @@ const DaysList = forwardRef(function DaysList({
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = null;
       if (!onScrollWeek || !listRef.current) return;
+      if (Date.now() < suppressSyncUntil.current) return;
       const containerTop = listRef.current.getBoundingClientRect().top;
       const sepEls = listRef.current.querySelectorAll('.week-separator[data-monday]');
+      // The active week is the one spanning the top of the viewport — i.e. the
+      // last separator at or above the container top, not the first one below it
+      // (that off-by-one highlighted the week after the clicked day).
+      let activeMonday = null;
       for (const el of sepEls) {
-        if (el.getBoundingClientRect().top >= containerTop) {
-          const monday = el.dataset.monday;
-          setCurrentScrollDate(monday);
-          onScrollWeek && onScrollWeek(monday);
+        if (el.getBoundingClientRect().top <= containerTop + 4) {
+          activeMonday = el.dataset.monday;
+        } else {
           break;
         }
+      }
+      if (!activeMonday && sepEls.length) activeMonday = sepEls[0].dataset.monday;
+      if (activeMonday) {
+        setCurrentScrollDate(activeMonday);
+        onScrollWeek && onScrollWeek(activeMonday);
       }
     });
   }, [onScrollWeek]);

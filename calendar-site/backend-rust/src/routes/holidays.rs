@@ -75,7 +75,7 @@ pub async fn import(
                 description: Some(description),
                 category_id: Some(holiday_cat.id.clone()),
                 color: None, start_time: None, end_time: None,
-                all_day: Some(true), partial: None,
+                all_day: Some(true),
             }).await?;
             imported += 1;
         }

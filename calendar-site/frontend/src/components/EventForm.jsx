@@ -10,7 +10,6 @@ function EventForm({ event, date, categories = [], onSave, onCancel }) {
     endTime: event?.endTime || '17:00',
     categoryId: event?.categoryId || categories?.[0]?.id || '',
     description: event?.description || '',
-    partial: event?.partial ?? false,
   });
 
   const [errors, setErrors] = React.useState({});
@@ -107,18 +106,6 @@ function EventForm({ event, date, categories = [], onSave, onCancel }) {
               onChange={(e) => handleChange('allDay', e.target.checked)}
             />
             <label htmlFor="allDay">All Day Event</label>
-          </div>
-        </div>
-
-        <div className="form-group">
-          <div className="checkbox-wrapper">
-            <input
-              id="partial"
-              type="checkbox"
-              checked={formData.partial}
-              onChange={(e) => handleChange('partial', e.target.checked)}
-            />
-            <label htmlFor="partial">Partial (striped on minimap, day shows through)</label>
           </div>
         </div>
 

@@ -98,7 +98,6 @@ impl EventStore {
             start_time: req.start_time.unwrap_or_default(),
             end_time: req.end_time.unwrap_or_default(),
             all_day: req.all_day.unwrap_or(false),
-            partial: req.partial.unwrap_or(false),
             order,
             created_at: now.clone(),
             updated_at: now,
@@ -127,7 +126,6 @@ impl EventStore {
         if let Some(v) = req.start_time  { ev.start_time  = v; }
         if let Some(v) = req.end_time    { ev.end_time    = v; }
         if let Some(v) = req.all_day     { ev.all_day     = v; }
-        if let Some(v) = req.partial     { ev.partial     = v; }
         ev.updated_at = Utc::now().to_rfc3339();
         let result = ev.clone();
         drop(cache);

@@ -17,25 +17,28 @@ function DesktopLayout({ selectedDate, setSelectedDate, events, loading, onFormS
   // Get events for the selected date
   const selectedDateEvents = events.filter(e => e.date === selectedDate);
 
+  // Align a day-square to the top of the DaysList. Uses direct scrollTop math —
+  // scrollIntoView({behavior:'smooth'}) is unreliable here (the lazy-load
+  // observers interrupt the animation), which highlighted the wrong week.
+  const scrollDayToTop = (date) => {
+    const el = document.querySelector(`.day-square[data-date="${date}"]`);
+    const dl = el?.closest('.days-list');
+    if (!el || !dl) return false;
+    dl.scrollTop += el.getBoundingClientRect().top - dl.getBoundingClientRect().top;
+    return true;
+  };
+
   // Scroll DaysList to selected date in YearMiniMap
   const handleYearDayClick = (date) => {
     setSelectedDate(date);
-    setTimeout(() => {
-      const el = document.querySelector(`[data-date="${date}"]`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+    setTimeout(() => scrollDayToTop(date), 50);
   };
 
   const handleScrollToToday = () => {
     const today = new Date().toISOString().split('T')[0];
     setSelectedDate(today);
-    const el = document.querySelector(`[data-date="${today}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      // Today not in DOM — reset the list from today
-      setDaysListKey(k => k + 1);
-    }
+    // Today not in DOM — reset the list from today
+    if (!scrollDayToTop(today)) setDaysListKey(k => k + 1);
   };
 
   // Handle day selection in DaysList

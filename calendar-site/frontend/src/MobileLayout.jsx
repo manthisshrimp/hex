@@ -14,12 +14,19 @@ function MobileListView({ selectedDate, setSelectedDate, events, loading, catego
   const [daysListKey, setDaysListKey] = useState(0);
   const [scrolledDate, setScrolledDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // Direct scrollTop math — scrollIntoView({behavior:'smooth'}) is unreliable
+  // here (lazy-load observers interrupt it), which highlighted the wrong week.
+  const scrollDayToTop = (date) => {
+    const el = document.querySelector(`.day-square[data-date="${date}"]`);
+    const dl = el?.closest('.days-list');
+    if (!el || !dl) return false;
+    dl.scrollTop += el.getBoundingClientRect().top - dl.getBoundingClientRect().top;
+    return true;
+  };
+
   const handleMinimapSelect = (date) => {
     setSelectedDate(date);
-    setTimeout(() => {
-      const el = document.querySelector(`[data-date="${date}"]`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+    setTimeout(() => scrollDayToTop(date), 50);
   };
 
   const handleDaySelect = (date) => {
@@ -30,12 +37,7 @@ function MobileListView({ selectedDate, setSelectedDate, events, loading, catego
   const handleScrollToToday = () => {
     const today = new Date().toISOString().split('T')[0];
     setSelectedDate(today);
-    const el = document.querySelector(`[data-date="${today}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      setDaysListKey(k => k + 1);
-    }
+    if (!scrollDayToTop(today)) setDaysListKey(k => k + 1);
   };
 
   return (

@@ -74,7 +74,8 @@ function getDayStyle(date, events, categories, todayStr) {
   if (!ev) return { bg: base, stripe: null };
   const cat = categories.find(c => c.id === ev.categoryId);
   const col = cat?.color || ev.color || '#7c6af7';
-  return ev.partial ? { bg: base, stripe: col } : { bg: col, stripe: null };
+  // Non-all-day events are "half" — striped so the day shows through.
+  return ev.allDay ? { bg: col, stripe: null } : { bg: base, stripe: col };
 }
 
 // Leave totals for a year, matched on category name. Striped (partial) leave
@@ -85,7 +86,8 @@ function computeYearStats(year, events, categories) {
   );
   const leave = events.filter(e => e.date.startsWith(`${year}-`) && leaveCatIds.has(e.categoryId));
   let full = 0, half = 0;
-  for (const e of leave) { if (e.partial) half++; else full++; }
+  // All-day leave = full; otherwise half.
+  for (const e of leave) { if (e.allDay) full++; else half++; }
   return { year, full, half, total: full + half * 0.5 };
 }
 
@@ -275,6 +277,7 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
                   return (
                     <div
                       key={date}
+                      data-date={date}
                       className={[
                         'minimap-day',
                         isToday ? 'is-today' : '',
