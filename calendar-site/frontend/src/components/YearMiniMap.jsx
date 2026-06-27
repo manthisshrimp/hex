@@ -56,17 +56,25 @@ function generateWeeks(monthsBack = 1, monthsAhead = 12) {
   return weeks;
 }
 
-function getDayColor(date, events, categories, todayStr) {
-  const dayEvents = events.filter(e => e.date === date);
-  if (dayEvents.length > 0) {
-    const ev = dayEvents[0];
-    const cat = categories.find(c => c.id === ev.categoryId);
-    return cat?.color || ev.color || '#7c6af7';
-  }
+function getBaseColor(date, todayStr) {
   if (date === todayStr) return '#0d2422';
   const dow = new Date(date + 'T00:00:00').getDay();
   if (dow === 0 || dow === 6) return '#1a2e1e';
   return '#24243a';
+}
+
+// Returns { bg, stripe }. A partial event keeps the base day colour as bg and
+// overlays diagonal stripes in the event colour so the day shows through.
+function getDayStyle(date, events, categories, todayStr) {
+  const base = getBaseColor(date, todayStr);
+  // Representative event = the top one in the day view (lowest order).
+  const ev = events
+    .filter(e => e.date === date)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+  if (!ev) return { bg: base, stripe: null };
+  const cat = categories.find(c => c.id === ev.categoryId);
+  const col = cat?.color || ev.color || '#7c6af7';
+  return ev.partial ? { bg: base, stripe: col } : { bg: col, stripe: null };
 }
 
 function buildChainMap(weeks, events, categories) {
@@ -110,20 +118,24 @@ const ROW_H = { default: 14, compact: 11 };
 const LABEL_W = { default: 32, compact: 26 };
 const MONTHS_PER_LOAD = 6;
 const MAX_MONTHS_BACK = 120;
+// Weeks of past context shown above the current week on load.
+const PAST_WEEKS_ON_LOAD = 16;
 
 export default function YearMiniMap({ events = [], categories = [], selectedDate, scrolledDate, onDayClick, compact = false }) {
   const rowH = compact ? ROW_H.compact : ROW_H.default;
   const labelW = compact ? LABEL_W.compact : LABEL_W.default;
   const minimapWidth = labelW + 7 * rowH;
   const [tooltip, setTooltip] = useState(null);
-  const [monthsBack, setMonthsBack] = useState(2);
+  const [monthsBack, setMonthsBack] = useState(4);
   const wrapperRef = useRef(null);
   const topSentinelRef = useRef(null);
   const prevScrollHeightRef = useRef(null);
   const prevScrolledWeekRef = useRef(null);
   const bootstrapping = useRef(true);
 
-  const weeks = useMemo(() => generateWeeks(monthsBack, 12), [monthsBack]);
+  // Render forward through December of the 5th year ahead (71 - currentMonth months).
+  const monthsAhead = 71 - new Date().getMonth();
+  const weeks = useMemo(() => generateWeeks(monthsBack, monthsAhead), [monthsBack, monthsAhead]);
   const chainMap = useMemo(() => buildChainMap(weeks, events, categories), [weeks, events, categories]);
 
   const scrollToWeek = (startDate, behavior = 'auto') => {
@@ -152,8 +164,11 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
       return;
     }
     bootstrapping.current = false;
-    const current = weeks.find(w => w.isCurrentWeek);
-    if (current) scrollToWeek(current.startDate);
+    // Land the current week PAST_WEEKS_ON_LOAD rows down so that many past
+    // weeks stay visible above it for context.
+    const idx = weeks.findIndex(w => w.isCurrentWeek);
+    const target = idx >= 0 ? weeks[Math.max(0, idx - PAST_WEEKS_ON_LOAD)] : null;
+    if (target) scrollToWeek(target.startDate);
   }, [monthsBack, weeks]);
 
   // Top sentinel — load more past weeks when the user scrolls to the top.
@@ -236,7 +251,7 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
                 {week.days.map(date => {
                   const isToday = date === week.todayStr;
                   const isSelectedDay = date === selectedDate;
-                  const bg = getDayColor(date, events, categories, week.todayStr);
+                  const { bg, stripe } = getDayStyle(date, events, categories, week.todayStr);
                   return (
                     <div
                       key={date}
@@ -245,7 +260,12 @@ export default function YearMiniMap({ events = [], categories = [], selectedDate
                         isToday ? 'is-today' : '',
                         isSelectedDay ? 'is-selected' : '',
                       ].filter(Boolean).join(' ')}
-                      style={{ backgroundColor: bg }}
+                      style={{
+                        backgroundColor: bg,
+                        ...(stripe && {
+                          backgroundImage: `repeating-linear-gradient(45deg, ${stripe} 0 1.5px, transparent 1.5px 4px)`,
+                        }),
+                      }}
                       onClick={() => onDayClick && onDayClick(date)}
                       onMouseEnter={e => handleDayMouseEnter(e, date)}
                       onMouseLeave={() => setTooltip(null)}

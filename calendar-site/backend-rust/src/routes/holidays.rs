@@ -28,7 +28,7 @@ pub async fn import(
     let current_year = chrono::Local::now().year();
     let years: Vec<i32> = match q.year {
         Some(y) => vec![y],
-        None    => vec![current_year, current_year + 1],
+        None    => (current_year..=current_year + 5).collect(),
     };
 
     // Ensure "Public Holiday" category exists
@@ -75,7 +75,7 @@ pub async fn import(
                 description: Some(description),
                 category_id: Some(holiday_cat.id.clone()),
                 color: None, start_time: None, end_time: None,
-                all_day: Some(true),
+                all_day: Some(true), partial: None,
             }).await?;
             imported += 1;
         }

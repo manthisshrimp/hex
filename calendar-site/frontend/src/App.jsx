@@ -6,7 +6,7 @@ import AdminAuth from './components/AdminAuth';
 import './App.css';
 import { useEvents } from './hooks/useEvents';
 import { useCategories } from './hooks/useCategories';
-import { setAuthToken, setAuthFailureHandler } from './api';
+import { setAuthToken, setAuthFailureHandler, reorderEvents } from './api';
 
 function App() {
   const [authToken, setAuth] = useState(() => {
@@ -38,11 +38,11 @@ function App() {
     setAuth(token);
   };
 
-  // Span previous → next year so the minimap's back-scroll and the imported
-  // next-year public holidays both have their events loaded.
+  // Span previous year → 5 years ahead so the minimap's scroll range and the
+  // imported public holidays both have their events loaded.
   const yearRange = () => {
     const year = new Date().getFullYear();
-    return { start: `${year - 1}-01-01`, end: `${year + 1}-12-31` };
+    return { start: `${year - 1}-01-01`, end: `${year + 5}-12-31` };
   };
 
   const handleFormSave = async (formData) => {
@@ -56,6 +56,15 @@ function App() {
     } catch (err) {
       console.error('Error saving event:', err);
       throw err;
+    }
+  };
+
+  const handleReorderEvents = async (date, ids) => {
+    try {
+      await reorderEvents(date, ids);
+      await refresh(yearRange());
+    } catch (err) {
+      console.error('Error reordering events:', err);
     }
   };
 
@@ -107,6 +116,7 @@ function App() {
           loading={loading}
           onFormSave={handleFormSave}
           onDeleteEvent={handleDeleteEvent}
+          onReorderEvents={handleReorderEvents}
           categories={categories}
         />
       ) : (
@@ -117,6 +127,7 @@ function App() {
           loading={loading}
           onFormSave={handleFormSave}
           onDeleteEvent={handleDeleteEvent}
+          onReorderEvents={handleReorderEvents}
           categories={categories}
         />
       )}

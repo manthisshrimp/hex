@@ -52,6 +52,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/api/auth", post(authenticate))
         // events — by-id literal registered before wildcard (Axum resolves literal first)
         .route("/api/events",           get(routes::events::list).post(routes::events::create))
+        .route("/api/events/reorder",   post(routes::events::reorder))
         .route("/api/events/by-id/:id", get(routes::events::get_by_id))
         // GET /:id handles date queries; PUT/DELETE use the same param slot
         .route("/api/events/:id",       get(routes::events::get_for_date).put(routes::events::update).delete(routes::events::delete))

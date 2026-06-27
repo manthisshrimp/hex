@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use crate::{error::AppError, models::{CreateEventRequest, UpdateEventRequest}};
+use crate::{error::AppError, models::{CreateEventRequest, UpdateEventRequest, ReorderRequest}};
 use super::super::AppState;
 
 pub async fn require_auth(headers: &HeaderMap, state: &AppState) -> Result<(), AppError> {
@@ -78,6 +78,16 @@ pub async fn update(
     let ev = state.events.update(&id, body).await?
         .ok_or_else(|| AppError::NotFound("Event not found".into()))?;
     Ok(Json(json!(ev)))
+}
+
+pub async fn reorder(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<ReorderRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    require_auth(&headers, &state).await?;
+    state.events.reorder(body).await?;
+    Ok(Json(json!({ "success": true })))
 }
 
 pub async fn delete(

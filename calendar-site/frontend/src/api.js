@@ -77,6 +77,18 @@ export async function updateEvent(id, updates) {
   return await response.json();
 }
 
+export async function reorderEvents(date, ids) {
+  const response = await apiFetch(`${API_URL}/events/reorder`, {
+    method: 'POST',
+    body: JSON.stringify({ date, ids }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || `Failed to reorder events (${response.status})`);
+  }
+  return true;
+}
+
 export async function deleteEvent(id) {
   const response = await apiFetch(`${API_URL}/events/${id}`, { method: 'DELETE' });
   if (!response.ok) {

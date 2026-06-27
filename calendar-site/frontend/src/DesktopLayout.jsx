@@ -7,7 +7,7 @@ import EventForm from './components/EventForm';
 import CategoriesManager from './components/CategoriesManager';
 import './DesktopLayout.css';
 
-function DesktopLayout({ selectedDate, setSelectedDate, events, loading, onFormSave, onDeleteEvent, categories = [] }) {
+function DesktopLayout({ selectedDate, setSelectedDate, events, loading, onFormSave, onDeleteEvent, onReorderEvents, categories = [] }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
@@ -140,6 +140,7 @@ function DesktopLayout({ selectedDate, setSelectedDate, events, loading, onFormS
             onAdd={handleAddEvent}
             onEdit={handleEditEvent}
             onDelete={handleDeleteEvent}
+            onReorder={onReorderEvents}
           />
         )}
       </main>

@@ -1,7 +1,7 @@
 import React from 'react';
 import EventList from './EventList';
 
-function DetailPanel({ date, events, categories = [], loading, onAdd, onEdit, onDelete }) {
+function DetailPanel({ date, events, categories = [], loading, onAdd, onEdit, onDelete, onReorder }) {
   const formattedDate = React.useMemo(() => {
     if (!date) return '';
     const dateObj = new Date(date + 'T00:00:00');
@@ -46,7 +46,7 @@ function DetailPanel({ date, events, categories = [], loading, onAdd, onEdit, on
       </div>
 
       <div className="detail-panel-content">
-        <EventList events={events} categories={categories} onEdit={handleEdit} onDelete={handleDelete} />
+        <EventList events={events} categories={categories} onEdit={handleEdit} onDelete={handleDelete} onReorder={onReorder} />
       </div>
     </div>
   );

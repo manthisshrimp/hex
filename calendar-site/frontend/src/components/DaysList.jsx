@@ -82,15 +82,15 @@ const DaysList = forwardRef(function DaysList({
     return () => clearTimeout(t);
   }, []);
 
-  // After initial load, scroll to today's week separator (pushes top sentinel out of view)
+  // After initial load, centre the current week group in the panel.
   useLayoutEffect(() => {
     if (days.length > 0 && !initialScrollDone.current && listRef.current) {
       initialScrollDone.current = true;
-      const todaySep = listRef.current.querySelector(`.week-separator[data-monday="${todayMonday}"]`);
-      if (todaySep) {
-        const containerRect = listRef.current.getBoundingClientRect();
-        const sepRect = todaySep.getBoundingClientRect();
-        listRef.current.scrollTop += sepRect.top - containerRect.top;
+      const grp = listRef.current.querySelector('.week-group--current');
+      if (grp) {
+        const cRect = listRef.current.getBoundingClientRect();
+        const gRect = grp.getBoundingClientRect();
+        listRef.current.scrollTop += (gRect.top - cRect.top) - (cRect.height - gRect.height) / 2;
       }
     }
   }, [days.length, todayMonday]);

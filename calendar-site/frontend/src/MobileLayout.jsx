@@ -95,7 +95,7 @@ function MobileListView({ selectedDate, setSelectedDate, events, loading, catego
 }
 
 // Mobile Detail View - Full screen detail with back button
-function MobileDetailView({ selectedDate, setSelectedDate, events, loading, onFormSave, onDeleteEvent, categories = [] }) {
+function MobileDetailView({ selectedDate, setSelectedDate, events, loading, onFormSave, onDeleteEvent, onReorderEvents, categories = [] }) {
   const navigate = useNavigate();
   const { date } = useParams();
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -175,6 +175,7 @@ function MobileDetailView({ selectedDate, setSelectedDate, events, loading, onFo
             onAdd={handleAddEvent}
             onEdit={handleEditEvent}
             onDelete={handleDeleteEvent}
+            onReorder={onReorderEvents}
           />
         )}
       </div>
@@ -193,7 +194,7 @@ function MobileCategoriesView() {
 }
 
 // Main MobileLayout component — uses the top-level BrowserRouter from main.jsx
-function MobileLayout({ selectedDate, setSelectedDate, events, loading, onFormSave, onDeleteEvent, categories = [] }) {
+function MobileLayout({ selectedDate, setSelectedDate, events, loading, onFormSave, onDeleteEvent, onReorderEvents, categories = [] }) {
   return (
     <Routes>
       <Route
@@ -218,6 +219,7 @@ function MobileLayout({ selectedDate, setSelectedDate, events, loading, onFormSa
             loading={loading}
             onFormSave={onFormSave}
             onDeleteEvent={onDeleteEvent}
+            onReorderEvents={onReorderEvents}
             categories={categories}
           />
         }

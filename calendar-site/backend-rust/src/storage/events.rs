@@ -6,7 +6,7 @@ use chrono::Utc;
 use uuid::Uuid;
 use crate::{
     error::AppError,
-    models::{Event, CreateEventRequest, UpdateEventRequest},
+    models::{Event, CreateEventRequest, UpdateEventRequest, ReorderRequest},
 };
 
 #[derive(Clone)]
@@ -81,6 +81,13 @@ impl EventStore {
 
     pub async fn create(&self, req: CreateEventRequest) -> Result<Event, AppError> {
         let now = Utc::now().to_rfc3339();
+        let mut cache = self.cache.lock().await;
+        // New events sort after existing ones on the same day.
+        let order = cache.iter()
+            .filter(|e| e.date == req.date)
+            .map(|e| e.order)
+            .max()
+            .map_or(0, |m| m + 1);
         let event = Event {
             id: Uuid::new_v4().to_string(),
             date: req.date,
@@ -91,6 +98,8 @@ impl EventStore {
             start_time: req.start_time.unwrap_or_default(),
             end_time: req.end_time.unwrap_or_default(),
             all_day: req.all_day.unwrap_or(false),
+            partial: req.partial.unwrap_or(false),
+            order,
             created_at: now.clone(),
             updated_at: now,
         };
@@ -101,7 +110,7 @@ impl EventStore {
             .map_err(|e| AppError::Storage(e.to_string()))?;
         file.write_all(line.as_bytes()).await
             .map_err(|e| AppError::Storage(e.to_string()))?;
-        self.cache.lock().await.push(event.clone());
+        cache.push(event.clone());
         Ok(event)
     }
 
@@ -118,11 +127,24 @@ impl EventStore {
         if let Some(v) = req.start_time  { ev.start_time  = v; }
         if let Some(v) = req.end_time    { ev.end_time    = v; }
         if let Some(v) = req.all_day     { ev.all_day     = v; }
+        if let Some(v) = req.partial     { ev.partial     = v; }
         ev.updated_at = Utc::now().to_rfc3339();
         let result = ev.clone();
         drop(cache);
         self.flush().await?;
         Ok(Some(result))
+    }
+
+    // Assign order = position in `ids` for events on `date`. Ids not on the date are ignored.
+    pub async fn reorder(&self, req: ReorderRequest) -> Result<(), AppError> {
+        let mut cache = self.cache.lock().await;
+        for (i, id) in req.ids.iter().enumerate() {
+            if let Some(ev) = cache.iter_mut().find(|e| &e.id == id && e.date == req.date) {
+                ev.order = i as i32;
+            }
+        }
+        drop(cache);
+        self.flush().await
     }
 
     pub async fn delete(&self, id: &str) -> Result<bool, AppError> {

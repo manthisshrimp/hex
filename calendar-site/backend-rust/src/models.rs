@@ -19,6 +19,12 @@ pub struct Event {
     pub end_time: String,
     #[serde(default)]
     pub all_day: bool,
+    // Partial events render as diagonal stripes on the minimap so the day shows through.
+    #[serde(default)]
+    pub partial: bool,
+    // Manual sort order within a day (lower = first). Legacy events default to 0.
+    #[serde(default)]
+    pub order: i32,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -59,6 +65,7 @@ pub struct CreateEventRequest {
     pub start_time: Option<String>,
     pub end_time: Option<String>,
     pub all_day: Option<bool>,
+    pub partial: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,6 +79,14 @@ pub struct UpdateEventRequest {
     pub start_time: Option<String>,
     pub end_time: Option<String>,
     pub all_day: Option<bool>,
+    pub partial: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReorderRequest {
+    pub date: String,
+    pub ids: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

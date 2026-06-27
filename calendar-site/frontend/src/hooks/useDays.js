@@ -71,8 +71,11 @@ export function useDays(initialDate, initialCount = INITIAL_DAYS_COUNT) {
     const dow = d.getDay();
     d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
     const monday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    setStartDate(monday);
-    loadDays(monday, INITIAL_DAYS_COUNT, false);
+    // Start two weeks before the current week so there's room above to centre
+    // the (taller-than-viewport) current week without clamping at the top.
+    const firstDay = addDays(monday, -14);
+    setStartDate(firstDay);
+    loadDays(firstDay, INITIAL_DAYS_COUNT + 14, false);
   }, [loadDays, initialDate]);
 
   const selectDay = useCallback((date) => {

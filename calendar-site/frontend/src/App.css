@@ -156,6 +156,10 @@ body {
   border-color: var(--color-primary);
 }
 
+/* Drag-to-reorder in the day view */
+.event-list [draggable="true"] { cursor: grab; }
+.event-dragging { opacity: 0.4; }
+
 .event-item-content {
   flex: 1;
   display: flex;

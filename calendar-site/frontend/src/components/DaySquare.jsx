@@ -30,7 +30,7 @@ function DaySquare({
       </div>
       {events.length > 0 && (
         <div className="day-events">
-          {events.slice(0, 3).map(ev => {
+          {[...events].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).slice(0, 3).map(ev => {
             const cat = categories.find(c => c.id === ev.categoryId);
             const color = cat?.color || ev.color || '#6b7280';
             return (
