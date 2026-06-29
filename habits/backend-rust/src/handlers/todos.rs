@@ -152,13 +152,22 @@ pub async fn get_reward(
     headers: HeaderMap,
 ) -> Result<Json<Value>, AppError> {
     super::require_auth(&headers, &state).await?;
-    let (monday, batch) = weekly_batch(&state, game::today());
+    let today = game::today();
+    let (monday, batch) = weekly_batch(&state, today);
     let count = batch.len();
     let monday_str = monday.format("%Y-%m-%d").to_string();
     let claimed = state.store.character.get().last_reward_claim.as_deref() == Some(monday_str.as_str());
 
+    // Live progress counter: tasks completed since this Monday (resets weekly).
+    let week_count = state.store.completed_todos.get_all().into_iter()
+        .filter(|c| game::parse_iso_date(&c.completed_at)
+            .map(|d| d >= monday)
+            .unwrap_or(false))
+        .count();
+
     Ok(Json(json!({
         "count": count,
+        "weekCount": week_count,
         "available": count >= 1 && !claimed,
         "claimed": claimed,
         "gold": 100.0 + 5.0 * count as f64,

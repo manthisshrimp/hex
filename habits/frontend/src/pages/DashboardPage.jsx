@@ -550,12 +550,12 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
           <SectionHeader>
             <span>
               TASKS
-              {reward?.count > 0 && (
+              {reward?.weekCount > 0 && (
                 <span
-                  title="Tasks completed last week"
+                  title="Tasks completed this week"
                   style={{ marginLeft: '8px', color: 'var(--color-gold)', fontFamily: "'Cinzel', serif", fontSize: '0.8rem' }}
                 >
-                  {reward.claimed ? '✓' : reward.count}
+                  {reward.weekCount}
                 </span>
               )}
             </span>
