@@ -3,7 +3,7 @@ import { fmtNum } from '../fmt';
 import SectionHeader from '../components/SectionHeader';
 import RandomEventCard from '../components/RandomEventCard';
 import { useFloat } from '../components/FloatLayer';
-import { getHabits, getCharacter, completeHabit, debugAdvanceDays, payFerryman, getHistoryHp, getHistoryGold, getRandomEvent, getTodos, createTodo, completeTodo, deleteTodo, getParty, cheerMember, addPartyMember, removePartyMember } from '../api';
+import { getHabits, getCharacter, completeHabit, debugAdvanceDays, payFerryman, getHistoryHp, getHistoryGold, getRandomEvent, getTodos, createTodo, completeTodo, deleteTodo, getWeeklyReward, claimWeeklyReward, getParty, cheerMember, addPartyMember, removePartyMember } from '../api';
 import { IMP_COLOR, SYSTEM_HABIT_ID } from '../constants';
 import { getTodayStr, daysBetween, deadlineLabel } from '../utils';
 
@@ -184,6 +184,9 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [addMemberLoading, setAddMemberLoading] = useState(false);
   const [removeLoading, setRemoveLoading] = useState(null);
+  const [reward, setReward] = useState(null);
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   const { addFloat } = useFloat();
   const [advancing, setAdvancing] = useState(false);
@@ -236,6 +239,13 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
     }
   }, []);
 
+  const loadReward = useCallback(async () => {
+    try {
+      const res = await getWeeklyReward();
+      if (res.ok) setReward(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     getCharacter().catch(() => {});
     loadHabits();
@@ -244,8 +254,9 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
       .then(data => { if (data?.current) setRandomEvent(data.current); })
       .catch(() => {});
     getTodos().then(r => r.ok ? r.json() : []).then(setTodos).catch(() => {});
+    loadReward();
     loadParty();
-  }, [loadHabits, loadParty]);
+  }, [loadHabits, loadParty, loadReward]);
 
   const handleComplete = useCallback(async (habitId) => {
     if (completedIds.has(habitId)) return;
@@ -296,8 +307,23 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
         addFloat({ type: 'gold', amount: Math.round(result.gold_earned) });
       }
       await refreshCharacter();
+      await loadReward();
     } catch { /* ignore */ }
-  }, [addFloat, refreshCharacter]);
+  }, [addFloat, refreshCharacter, loadReward]);
+
+  const handleClaimReward = useCallback(async (type) => {
+    if (claiming) return;
+    setClaiming(true);
+    try {
+      const res = await claimWeeklyReward(type);
+      if (!res.ok) { const b = await res.json().catch(() => ({})); alert(b.error || 'Claim failed'); return; }
+      const result = await res.json();
+      if (result.goldEarned > 0) addFloat({ type: 'gold', amount: Math.round(result.goldEarned) });
+      setRewardOpen(false);
+      await refreshCharacter();
+      await loadReward();
+    } catch { /* ignore */ } finally { setClaiming(false); }
+  }, [claiming, addFloat, refreshCharacter, loadReward]);
 
   const handleCheer = useCallback(async (memberUrl) => {
     setCheerLoading(memberUrl);
@@ -444,6 +470,47 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
         <ForsakenCard gold={gold} onPay={handlePayFerryman} />
       )}
 
+      {rewardOpen && reward && (
+        <div className="checkin-overlay" onClick={() => setRewardOpen(false)}>
+          <div className="checkin-panel" onClick={e => e.stopPropagation()}>
+            <div className="checkin-title">Weekly Bounty</div>
+            <div className="checkin-subtitle">
+              The week of {reward.weekStart} — you completed {reward.count} {reward.count === 1 ? 'task' : 'tasks'}. Claim your reward.
+            </div>
+            <div className="checkin-habit-list">
+              {reward.tasks.map((t, i) => (
+                <div key={i} className="checkin-habit-row" style={{ cursor: 'default' }}>
+                  <div className="checkin-habit-body">
+                    <div className="checkin-habit-name">{t.title}</div>
+                  </div>
+                  <span className="checkin-habit-imp" style={{ color: 'var(--color-text-muted)' }}>
+                    {t.completedAt?.slice(0, 10)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="bevel-btn checkin-submit-btn"
+                style={{ color: 'var(--color-gold)' }}
+                onClick={() => handleClaimReward('gold')}
+                disabled={claiming}
+              >
+                ⚜ Gold +{Math.round(reward.gold)}
+              </button>
+              <button
+                className="bevel-btn checkin-submit-btn"
+                style={{ color: '#4caf7d' }}
+                onClick={() => handleClaimReward('heal')}
+                disabled={claiming}
+              >
+                ♥ Heal +{Math.round(reward.heal)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="dashboard-cols">
         <div>
           <SectionHeader>
@@ -480,7 +547,28 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
 
         {/* Tasks column */}
         <div>
-          <SectionHeader>TASKS</SectionHeader>
+          <SectionHeader>
+            <span>
+              TASKS
+              {reward?.count > 0 && (
+                <span
+                  title="Tasks completed last week"
+                  style={{ marginLeft: '8px', color: 'var(--color-gold)', fontFamily: "'Cinzel', serif", fontSize: '0.8rem' }}
+                >
+                  {reward.claimed ? '✓' : reward.count}
+                </span>
+              )}
+            </span>
+            {reward?.available && (
+              <button
+                className="bevel-btn"
+                style={{ padding: '5px 12px', fontSize: '0.72rem', marginBottom: '8px', color: 'var(--color-gold)' }}
+                onClick={() => setRewardOpen(true)}
+              >
+                ⚜ CLAIM
+              </button>
+            )}
+          </SectionHeader>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             <input
               className="todo-input"

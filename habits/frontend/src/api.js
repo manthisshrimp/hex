@@ -103,6 +103,8 @@ export const getTodos = () => apiFetch('/habits/api/todos');
 export const createTodo = (title) => apiFetch('/habits/api/todos', { method: 'POST', body: JSON.stringify({ title }) });
 export const completeTodo = (id) => apiFetch(`/habits/api/todos/${id}/complete`, { method: 'POST' });
 export const deleteTodo = (id) => apiFetch(`/habits/api/todos/${id}`, { method: 'DELETE' });
+export const getWeeklyReward = () => apiFetch('/habits/api/todos/reward');
+export const claimWeeklyReward = (type) => apiFetch('/habits/api/todos/reward/claim', { method: 'POST', body: JSON.stringify({ type }) });
 
 export const getDeeds = () => apiFetch('/habits/api/deeds');
 export const createDeed = (data) => apiFetch('/habits/api/deeds', { method: 'POST', body: JSON.stringify(data) });

@@ -79,6 +79,9 @@ pub struct Character {
     pub renown: f64,          // decays 1/day; filled by good deeds at full HP
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Monday (YYYY-MM-DD) whose weekly task bounty was last claimed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_reward_claim: Option<String>,
 }
 
 // ── API response types ────────────────────────────────────────────────────────
@@ -201,6 +204,15 @@ pub struct TodoWithGold {
     #[serde(flatten)]
     pub todo: Todo,
     pub gold: f64,
+}
+
+/// Append-only record of a completed task, kept for the weekly turn-in.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletedTodo {
+    pub id: String,
+    pub title: String,
+    pub completed_at: String,  // ISO datetime
 }
 
 // ── Deeds ─────────────────────────────────────────────────────────────────────

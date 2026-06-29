@@ -21,7 +21,7 @@ use habits_backend::handlers::{
     shop::{get_shop, buy_item},
     equipment::{get_equipment, equip_item, unequip_slot},
     random_event::{get_random_event, resolve_random_event, choose_random_event, get_random_event_history, inject_encounter},
-    todos::{list_todos, create_todo, complete_todo, delete_todo},
+    todos::{list_todos, create_todo, complete_todo, delete_todo, get_reward, claim_reward},
     deeds::{list_deeds, create_deed, update_deed, delete_deed, log_deed},
     service::{service_create_todo, service_complete_todo, service_delete_todo},
     party::{
@@ -145,6 +145,8 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/api/random-event/history", get(get_random_event_history))
         .route("/api/encounters", post(inject_encounter))
         .route("/api/todos", get(list_todos).post(create_todo))
+        .route("/api/todos/reward", get(get_reward))
+        .route("/api/todos/reward/claim", post(claim_reward))
         .route("/api/todos/:id/complete", post(complete_todo))
         .route("/api/todos/:id", delete(delete_todo))
         .route("/api/deeds", get(list_deeds).post(create_deed))

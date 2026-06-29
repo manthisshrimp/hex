@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Utc};
+use chrono::{Datelike, NaiveDate, Utc};
 use crate::models::{Completion, Habit, Importance};
 
 // ── GameConfig ────────────────────────────────────────────────────────────────
@@ -63,6 +63,11 @@ pub fn today_str() -> String {
 /// Parse the leading YYYY-MM-DD portion of an ISO datetime string.
 pub fn parse_iso_date(iso: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(iso.get(..10)?, "%Y-%m-%d").ok()
+}
+
+/// The Monday on or before `d` (week starts Monday).
+pub fn most_recent_monday(d: NaiveDate) -> NaiveDate {
+    d - chrono::Duration::days(d.weekday().num_days_from_monday() as i64)
 }
 
 // ── Gold helpers ──────────────────────────────────────────────────────────────
@@ -264,6 +269,18 @@ mod tests {
             habit_id: habit_id.to_string(),
             completed_at: format!("{}T00:00:00Z", date_str),
         }
+    }
+
+    // ── most_recent_monday ───────────────────────────────────────────────────
+
+    #[test]
+    fn most_recent_monday_resolves_week_start() {
+        // 2026-06-29 is a Monday → returns itself.
+        assert_eq!(most_recent_monday(date("2026-06-29")), date("2026-06-29"));
+        // Wednesday 2026-07-01 → previous Monday 2026-06-29.
+        assert_eq!(most_recent_monday(date("2026-07-01")), date("2026-06-29"));
+        // Sunday 2026-06-28 → Monday 2026-06-22.
+        assert_eq!(most_recent_monday(date("2026-06-28")), date("2026-06-22"));
     }
 
     // ── importance_weight ────────────────────────────────────────────────────

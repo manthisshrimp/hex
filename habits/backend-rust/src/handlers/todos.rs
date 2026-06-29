@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::game;
-use crate::models::{GoldEvent, Todo, TodoWithGold};
+use crate::models::{CompletedTodo, GoldEvent, HealthEvent, Todo, TodoWithGold};
 use super::AppState;
 
 fn todo_gold(created_date: &str, today: NaiveDate) -> f64 {
@@ -72,6 +72,13 @@ pub async fn complete_todo(
 
     let gold_earned = todo_gold(&todo.created_date, today);
 
+    // Log the completion for the weekly turn-in (both forsaken and normal paths).
+    state.store.completed_todos.append(CompletedTodo {
+        id: todo.id.clone(),
+        title: todo.title.clone(),
+        completed_at: chrono::Utc::now().to_rfc3339(),
+    }).await?;
+
     let mut character = state.store.character.get();
     if character.hp <= 0.0 {
         state.store.todos.remove(&id).await?;
@@ -122,4 +129,110 @@ pub async fn delete_todo(
     }
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+// ── Weekly task bounty ────────────────────────────────────────────────────────
+
+/// The claimable batch = tasks completed in the week that closed on the most
+/// recent Monday, i.e. [monday-7, monday). Tasks done this week belong to the
+/// next Monday's batch. Returns (monday, batch).
+fn weekly_batch(state: &AppState, today: NaiveDate) -> (NaiveDate, Vec<CompletedTodo>) {
+    let monday = game::most_recent_monday(today);
+    let start = monday - chrono::Duration::days(7);
+    let batch = state.store.completed_todos.get_all().into_iter()
+        .filter(|c| game::parse_iso_date(&c.completed_at)
+            .map(|d| d >= start && d < monday)
+            .unwrap_or(false))
+        .collect();
+    (monday, batch)
+}
+
+pub async fn get_reward(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, AppError> {
+    super::require_auth(&headers, &state).await?;
+    let (monday, batch) = weekly_batch(&state, game::today());
+    let count = batch.len();
+    let monday_str = monday.format("%Y-%m-%d").to_string();
+    let claimed = state.store.character.get().last_reward_claim.as_deref() == Some(monday_str.as_str());
+
+    Ok(Json(json!({
+        "count": count,
+        "available": count >= 1 && !claimed,
+        "claimed": claimed,
+        "gold": 100.0 + 5.0 * count as f64,
+        "heal": 10.0 + count as f64,
+        "weekStart": (monday - chrono::Duration::days(7)).format("%Y-%m-%d").to_string(),
+        "weekEnd": monday_str,
+        "tasks": batch.iter()
+            .map(|c| json!({ "title": c.title, "completedAt": c.completed_at }))
+            .collect::<Vec<_>>(),
+    })))
+}
+
+pub async fn claim_reward(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, AppError> {
+    super::require_auth(&headers, &state).await?;
+    let reward_type = body["type"].as_str().unwrap_or("");
+
+    let (monday, batch) = weekly_batch(&state, game::today());
+    let count = batch.len();
+    let monday_str = monday.format("%Y-%m-%d").to_string();
+
+    let mut character = state.store.character.get();
+    if character.hp <= 0.0 {
+        return Err(AppError::Validation("Pay the Ferryman before claiming.".to_string()));
+    }
+    if count == 0 {
+        return Err(AppError::Validation("No completed tasks to turn in.".to_string()));
+    }
+    if character.last_reward_claim.as_deref() == Some(monday_str.as_str()) {
+        return Err(AppError::Validation("This week's bounty is already claimed.".to_string()));
+    }
+
+    let (gold_delta, heal) = match reward_type {
+        "gold" => (100.0 + 5.0 * count as f64, 0.0),
+        "heal" => (0.0, 10.0 + count as f64),
+        _ => return Err(AppError::Validation("type must be 'gold' or 'heal'".to_string())),
+    };
+
+    if gold_delta > 0.0 {
+        character.gold = game::apply_gold_delta(character.gold, gold_delta);
+        state.store.events.append_gold(GoldEvent {
+            id: Uuid::new_v4().to_string(),
+            event_type: "weekly_reward".to_string(),
+            amount: gold_delta,
+            reason: format!("weekly bounty: {} tasks", count),
+            habit_id: None,
+            timestamp: chrono::Utc::now().to_rfc3339(),
+        }).await?;
+    }
+    if heal > 0.0 {
+        character.hp = (character.hp + heal).min(state.config.max_hp);
+        state.store.events.append_health(HealthEvent {
+            id: Uuid::new_v4().to_string(),
+            event_type: "regen".to_string(),
+            amount: heal,
+            reason: format!("weekly bounty: {} tasks", count),
+            habit_id: None,
+            tick_date: game::today_str(),
+        }).await?;
+    }
+
+    character.last_reward_claim = Some(monday_str);
+    let new_gold = character.gold;
+    let new_hp = character.hp;
+    state.store.character.save(character).await?;
+
+    Ok(Json(json!({
+        "type": reward_type,
+        "goldEarned": gold_delta,
+        "hpHealed": heal,
+        "newGold": new_gold,
+        "newHp": new_hp,
+    })))
 }

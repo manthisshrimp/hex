@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::game;
-use crate::models::{GoldEvent, Todo};
+use crate::models::{CompletedTodo, GoldEvent, Todo};
 use super::AppState;
 
 // POST /api/service/todos — create a todo (called by task-board)
@@ -53,6 +53,13 @@ pub async fn service_complete_todo(
         let days = (today - created).num_days().max(0) as f64;
         (50.0 - days * 5.0).max(10.0)
     };
+
+    // Log the completion for the weekly turn-in.
+    state.store.completed_todos.append(CompletedTodo {
+        id: todo.id.clone(),
+        title: todo.title.clone(),
+        completed_at: chrono::Utc::now().to_rfc3339(),
+    }).await?;
 
     let mut character = state.store.character.get();
     if character.hp > 0.0 {

@@ -27,6 +27,7 @@ impl CharacterStore {
                 last_tick_date: today,
                 renown: 0.0,
                 name: None,
+                last_reward_claim: None,
             };
             let content = serde_json::to_string_pretty(&default)?;
             fs::write(&file_path, content).await?;
