@@ -614,26 +614,26 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
         {/* Tasks column */}
         <div>
           <SectionHeader>
-            <span>
-              TASKS
+            <span>TASKS</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {reward?.weekCount > 0 && (
                 <span
                   title="Tasks completed this week"
-                  style={{ marginLeft: '8px', color: 'var(--color-gold)', fontFamily: "'Cinzel', serif", fontSize: '0.8rem' }}
+                  style={{ color: 'var(--color-gold)', fontFamily: "'Cinzel', serif", fontSize: '0.8rem' }}
                 >
                   {reward.weekCount}
                 </span>
               )}
+              {reward?.available && (
+                <button
+                  className="bevel-btn"
+                  style={{ padding: '5px 12px', fontSize: '0.72rem', color: 'var(--color-gold)' }}
+                  onClick={() => setRewardOpen(true)}
+                >
+                  ⚜ CLAIM
+                </button>
+              )}
             </span>
-            {reward?.available && (
-              <button
-                className="bevel-btn"
-                style={{ padding: '5px 12px', fontSize: '0.72rem', marginBottom: '8px', color: 'var(--color-gold)' }}
-                onClick={() => setRewardOpen(true)}
-              >
-                ⚜ CLAIM
-              </button>
-            )}
           </SectionHeader>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
             <input
