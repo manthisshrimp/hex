@@ -174,8 +174,7 @@ export default function BossPage({ refreshCharacter }) {
                 <div style={{ flex: 1, minWidth: '130px', background: '#0d1a22', border: '1px solid #204a5a', borderRadius: '4px', padding: '7px 10px' }}>
                   <div style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: '2px' }}>🛡 ARMOUR {armor ?? 0}</div>
                   <div style={{ fontSize: '0.78rem', color: '#3a90b0' }}>
-                    boss ×{(effMultiplier ?? boss.damageMultiplier).toFixed(2)}
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.66rem' }}> (base ×{boss.damageMultiplier})</span>
+                    −{boss.damageMultiplier > 1 ? Math.round((1 - (effMultiplier ?? boss.damageMultiplier) / boss.damageMultiplier) * 100) : 0}% boss damage
                   </div>
                 </div>
                 <div style={{ flex: 1, minWidth: '130px', background: '#1a0d0d', border: '1px solid #5a2020', borderRadius: '4px', padding: '7px 10px' }}>
