@@ -35,10 +35,10 @@ fn boss_tick_params(
     if day < started || day >= ends {
         return (false, 1.0, 0);
     }
-    let multiplier = crate::bosses_catalogue::find(&p.boss_id)
-        .map(|b| b.damage_multiplier)
-        .unwrap_or(1.0);
-    (true, multiplier, 8) // ponytail: wear_per_day constant; parameterise if bosses diverge
+    let def = crate::bosses_catalogue::find(&p.boss_id);
+    let multiplier = def.as_ref().map(|b| b.damage_multiplier).unwrap_or(1.0);
+    let wear = def.as_ref().map(|b| b.wear_per_day).unwrap_or(1);
+    (true, multiplier, wear)
 }
 
 /// Apply gear wear from a boss-day and submit/queue the daily contribution.

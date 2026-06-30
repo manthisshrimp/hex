@@ -356,12 +356,19 @@ can't crack a greater+ boss.
 
 ### Gear degradation
 
-Equipped gear **wears** each boss-day (`8` durability per item). When an
-item's durability reaches `0` it **breaks**: removed from equipped and
-inventory, logged as a casualty in the end-of-quest summary. Gear is
-consumable — no repair; the shop is the re-buy sink.
+Equipped gear **wears** each boss-day by a small, tier-scaled amount
+(`wear_per_day`): **1** for lesser, **2** for greater/ancient, **3** for mythic.
+Even the longest fight never destroys a fresh item in one go (e.g. The Sundering
+= 3 × 18 = 54 of 100 durability). When an item's durability reaches `0` it
+**breaks**: removed from equipped and inventory, logged as a casualty in the
+end-of-quest summary. Gear is consumable — no repair; the shop is the re-buy sink.
 
-Random encounters (resolved outside a boss) also wear gear (`5` per item).
+Wear is a **tax, not the point** — the real payoff is the gold and the chance at
+a **unique (`rnw-`) item**, the strongest gear in the game and otherwise only
+available one-per-week through the renown shop. The intended loop: grind habits
+→ buy gear → gear makes a boss survivable → boss drops unique loot → tackle a
+harder tier. Wear only happens during boss fights; normal habit life never
+wears gear.
 
 ### Victory rewards
 
@@ -381,13 +388,13 @@ Boss HP is **fixed** (shown ×100, matching the UI). "Party @ 5/5" is the roster
 needed if everyone sustains a good 5-completion day (≈0.76 dmg each); casual
 3/3 play needs more. Only lesser bosses are soloable.
 
-| Boss | Tier | Reveal weight | Duration | Boss HP | Party @ 5/5 | Damage × | Reward gold |
-|---|---|---|---|---|---|---|---|
-| Gloomfang *(starter)* | lesser | 50 | 5 days | 230 | 1 (solo) | 1.25× | 300 |
-| The Mirefen Lurker | lesser | 50 | 6 days | 270 | 1 (solo) | 1.3× | 450 |
-| The Ashwarden | greater | 22 | 7 days | 900 | 2 | 1.5× | 600 |
-| The Stormcaller | greater | 22 | 8 days | 1000 | 2 | 1.6× | 850 |
-| Dreadtide | greater | 22 | 10 days | 1400 | 2 | 1.75× | 1000 |
-| The Hollow King | ancient | 8 | 12 days | 2600 | 3 | 1.9× | 1500 |
-| The Undying Vigil | ancient | 8 | 14 days | 3500 | 4 | 2.0× | 2000 |
-| The Sundering | mythic | 2 | 18 days | 6300 | 5 | 2.5× | 3500 |
+| Boss | Tier | Reveal weight | Duration | Boss HP | Party @ 5/5 | Damage × | Wear/day | Reward gold |
+|---|---|---|---|---|---|---|---|---|
+| Gloomfang *(starter)* | lesser | 50 | 5 days | 230 | 1 (solo) | 1.25× | 1 | 600 |
+| The Mirefen Lurker | lesser | 50 | 6 days | 270 | 1 (solo) | 1.3× | 1 | 900 |
+| The Ashwarden | greater | 22 | 7 days | 900 | 2 | 1.5× | 2 | 1200 |
+| The Stormcaller | greater | 22 | 8 days | 1000 | 2 | 1.6× | 2 | 1700 |
+| Dreadtide | greater | 22 | 10 days | 1400 | 2 | 1.75× | 2 | 2000 |
+| The Hollow King | ancient | 8 | 12 days | 2600 | 3 | 1.9× | 2 | 3000 |
+| The Undying Vigil | ancient | 8 | 14 days | 3500 | 4 | 2.0× | 2 | 4000 |
+| The Sundering | mythic | 2 | 18 days | 6300 | 5 | 2.5× | 3 | 7000 |
