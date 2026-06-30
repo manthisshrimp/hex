@@ -1444,6 +1444,20 @@ h1, h2, h3 {
   .armoury-col.armoury-col-hidden { display: block; }
 }
 
+/* ── Quests: quest cards (flex) | boss (fixed width) ─────────── */
+
+@media (min-width: 768px) {
+  .quests-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* Both columns visible on desktop regardless of tab state */
+  .quests-cols .armoury-col-hidden { display: block; }
+}
+
 /* ── Chronicle: charts | encounters | battle record ─────────── */
 
 @media (min-width: 768px) {

@@ -15,7 +15,7 @@ const SUB_TABS = [
 
 function SubTabRow({ tab, setTab }) {
   return (
-    <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+    <div className="armoury-tabs-row">
       {SUB_TABS.map(({ key, label }) => (
         <button
           key={key}
@@ -202,33 +202,6 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
     setModalOpen(true);
   };
 
-  if (tab === 'boss') {
-    return (
-      <div className="page-content">
-        <SubTabRow tab={tab} setTab={setTab} />
-        <BossPage refreshCharacter={refreshCharacter} />
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="page-content">
-        <SubTabRow tab={tab} setTab={setTab} />
-        <div className="loading-state">Loading quests...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="page-content">
-        <SubTabRow tab={tab} setTab={setTab} />
-        <div className="empty-state">Failed to load: {error}</div>
-      </div>
-    );
-  }
-
   const activeHabits = habits
     .filter(h => h.active && !h.inscribed)
     .filter(h => h.id === SYSTEM_HABIT_ID || freqFilter === 'all' || h.frequency === freqFilter)
@@ -245,6 +218,14 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
   return (
     <div className="page-content">
       <SubTabRow tab={tab} setTab={setTab} />
+      <div className="quests-cols">
+        <div className={`quests-col-main${tab !== 'quests' ? ' armoury-col-hidden' : ''}`}>
+          {loading ? (
+            <div className="loading-state">Loading quests...</div>
+          ) : error ? (
+            <div className="empty-state">Failed to load: {error}</div>
+          ) : (
+            <>
       <div className="page-header-row">
         <SectionHeader>
           <span>ACTIVE QUESTS</span>
@@ -356,6 +337,13 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
           </div>
         </div>
       )}
+            </>
+          )}
+        </div>
+        <div className={`quests-col-boss${tab !== 'boss' ? ' armoury-col-hidden' : ''}`}>
+          <BossPage refreshCharacter={refreshCharacter} />
+        </div>
+      </div>
 
       {/* Add / Edit modal */}
       <ModalPanel

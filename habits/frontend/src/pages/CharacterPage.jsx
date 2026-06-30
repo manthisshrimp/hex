@@ -91,10 +91,10 @@ function StatRow({ label, value, color }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-const TABS = ['character', 'equipped', 'inventory', 'shop'];
+// 'equipped' tab dropped — the Inventory column already shows equipped + inventory.
+const TABS = ['character', 'inventory', 'shop'];
 const TAB_LABELS = {
   character: 'Character',
-  equipped: 'Equipped',
   inventory: 'Inventory',
   shop: 'Shop',
 };
@@ -181,7 +181,7 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
   const unequippedInventory = inventory.filter(i => !equippedIds.has(i.id));
   const ownedIds = new Set(inventory.map(i => i.id));
 
-  const armoury2Active = tab === 'equipped' || tab === 'inventory';
+  const armoury2Active = tab === 'inventory';
 
   return (
     <div className="page-content">
