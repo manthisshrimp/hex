@@ -42,25 +42,12 @@ function StarIcon() {
   );
 }
 
-function SkullIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M12 2C7.03 2 3 6.03 3 11c0 2.93 1.36 5.55 3.49 7.25L7 22h10l.51-3.75C19.64 16.55 21 13.93 21 11c0-4.97-4.03-9-9-9z" />
-      <line x1="9" y1="17" x2="9" y2="22" />
-      <line x1="15" y1="17" x2="15" y2="22" />
-      <circle cx="9" cy="11" r="1.5" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="11" r="1.5" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
 const TABS = [
   { key: 'dashboard', path: '/',           label: 'Dashboard', Icon: ShieldIcon },
   { key: 'quests',    path: '/habits',     label: 'Quests',    Icon: ScrollIcon },
   { key: 'character', path: '/character',  label: 'Character', Icon: PersonIcon },
   { key: 'deeds',     path: '/deeds',      label: 'Deeds',     Icon: StarIcon   },
   { key: 'chronicle', path: '/chronicle',  label: 'Chronicle', Icon: BookIcon   },
-  { key: 'boss',      path: '/boss',       label: 'Boss',      Icon: SkullIcon  },
 ];
 
 export default function BottomNav({ active }) {

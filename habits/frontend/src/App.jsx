@@ -12,7 +12,6 @@ import HabitsPage from './pages/HabitsPage';
 import HistoryPage from './pages/HistoryPage';
 import CharacterPage from './pages/CharacterPage';
 import DeedsPage from './pages/DeedsPage';
-import BossPage from './pages/BossPage';
 
 const IMP_COLOR = {
   low: 'var(--color-imp-low)',
@@ -193,7 +192,6 @@ function App() {
             <Route path="/character" element={<CharacterPage hp={hp} gold={gold} damage={damage} armor={armor} renown={renown} characterName={characterName} refreshCharacter={refreshCharacter} />} />
             <Route path="/chronicle" element={<HistoryPage />} />
             <Route path="/deeds" element={<DeedsPage renown={renown} refreshCharacter={refreshCharacter} />} />
-            <Route path="/boss" element={<BossPage refreshCharacter={refreshCharacter} />} />
           </Routes>
 
           <BottomNav />

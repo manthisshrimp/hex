@@ -1,13 +1,48 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import HabitCard from '../components/HabitCard';
 import SectionHeader from '../components/SectionHeader';
 import ModalPanel from '../components/ModalPanel';
 import { useFloat } from '../components/FloatLayer';
 import { getHabits, createHabit, updateHabit, deleteHabit, completeHabit, rescheduleHabit, moveHabit, inscribeHabit, restoreHabit } from '../api';
 import { SYSTEM_HABIT_ID } from '../constants';
+import BossPage from './BossPage';
+
+const SUB_TABS = [
+  { key: 'quests', label: 'Quests' },
+  { key: 'boss', label: 'Boss' },
+];
+
+function SubTabRow({ tab, setTab }) {
+  return (
+    <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+      {SUB_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          className="bevel-btn"
+          style={{
+            flex: 1,
+            padding: '8px 2px',
+            fontFamily: "'Cinzel', serif",
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            fontSize: '0.72rem',
+            background: tab === key ? 'var(--color-border-glow)' : undefined,
+            color: tab === key ? '#1a1206' : undefined,
+          }}
+          onClick={() => setTab(key)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function HabitsPage({ hp, gold, refreshCharacter }) {
   const { addFloat } = useFloat();
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get('tab') === 'boss' ? 'boss' : 'quests');
   const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -167,9 +202,19 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
     setModalOpen(true);
   };
 
+  if (tab === 'boss') {
+    return (
+      <div className="page-content">
+        <SubTabRow tab={tab} setTab={setTab} />
+        <BossPage refreshCharacter={refreshCharacter} />
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="page-content">
+        <SubTabRow tab={tab} setTab={setTab} />
         <div className="loading-state">Loading quests...</div>
       </div>
     );
@@ -178,6 +223,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
   if (error) {
     return (
       <div className="page-content">
+        <SubTabRow tab={tab} setTab={setTab} />
         <div className="empty-state">Failed to load: {error}</div>
       </div>
     );
@@ -198,6 +244,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
 
   return (
     <div className="page-content">
+      <SubTabRow tab={tab} setTab={setTab} />
       <div className="page-header-row">
         <SectionHeader>
           <span>ACTIVE QUESTS</span>

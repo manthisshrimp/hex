@@ -47,7 +47,6 @@ export default function BossPage({ refreshCharacter }) {
   const [error, setError] = useState(null);
   const [launching, setLaunching] = useState(null);
   const [joining, setJoining] = useState(null);
-  const [joinInput, setJoinInput] = useState('');
 
   async function reload() {
     try {
@@ -81,7 +80,6 @@ export default function BossPage({ refreshCharacter }) {
       const url = raw.startsWith('http') ? raw : `https://${raw}`;
       const res = await joinBoss(url);
       if (!res.ok) { const b = await res.json().catch(() => ({})); alert(b.error || 'Join failed'); return; }
-      setJoinInput('');
       await reload();
       refreshCharacter();
     } finally { setJoining(null); }
@@ -96,8 +94,8 @@ export default function BossPage({ refreshCharacter }) {
     } catch { /* ignore */ }
   }
 
-  if (loading) return <div className="page-content"><div className="loading-state">Loading...</div></div>;
-  if (error) return <div className="page-content"><div className="empty-state">Failed to load boss data.</div></div>;
+  if (loading) return <div className="loading-state">Loading...</div>;
+  if (error) return <div className="empty-state">Failed to load boss data.</div>;
 
   const active = data?.active;
   const revealed = data?.revealed ?? [];
@@ -106,14 +104,13 @@ export default function BossPage({ refreshCharacter }) {
   const isEmpty = !active && !invitations.length && !revealed.length;
 
   return (
-    <div className="page-content">
-
+    <>
       {active && (() => {
         const { boss, quest, myContribution, myContributedToday, gear, leaderboard } = active;
         return (
           <>
             <SectionHeader>ACTIVE QUEST</SectionHeader>
-            <div className="stone-panel" style={{ marginBottom: '14px' }}>
+            <div className="stone-panel" style={{ padding: '14px', marginBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '1rem', fontWeight: 700 }}>{boss.name}</span>
                 <TierBadge tier={boss.tier} />
@@ -136,20 +133,17 @@ export default function BossPage({ refreshCharacter }) {
               {leaderboard?.length > 0 && (
                 <div style={{ marginBottom: '12px' }}>
                   <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em', marginBottom: '4px' }}>LEADERBOARD</div>
-                  {leaderboard.map((entry, i) => {
-                    const isMe = entry.url.includes('localhost');
-                    return (
-                      <div key={i} style={{
-                        display: 'flex', justifyContent: 'space-between',
-                        fontSize: '0.73rem', padding: '3px 0',
-                        color: isMe ? 'var(--color-text)' : 'var(--color-text-muted)',
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      }}>
-                        <span>{shortenUrl(entry.url)}{isMe && <span style={{ color: '#4caf7d', marginLeft: '6px', fontSize: '0.65rem' }}>(you)</span>}</span>
-                        <span>{entry.total.toFixed(2)}</span>
-                      </div>
-                    );
-                  })}
+                  {leaderboard.map((entry, i) => (
+                    <div key={i} style={{
+                      display: 'flex', justifyContent: 'space-between',
+                      fontSize: '0.73rem', padding: '3px 0',
+                      color: entry.isMe ? 'var(--color-text)' : 'var(--color-text-muted)',
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    }}>
+                      <span>{entry.name}{entry.isMe && <span style={{ color: '#4caf7d', marginLeft: '6px', fontSize: '0.65rem' }}>(you)</span>}</span>
+                      <span>{entry.total.toFixed(2)}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -190,7 +184,7 @@ export default function BossPage({ refreshCharacter }) {
         <>
           <SectionHeader>INVITATIONS</SectionHeader>
           {invitations.map((inv, i) => (
-            <div key={i} className="stone-panel" style={{ marginBottom: '10px' }}>
+            <div key={i} className="stone-panel" style={{ padding: '14px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{shortenUrl(inv.hostUrl)}</span>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '0.85rem' }}>{inv.boss.name}</span>
@@ -209,38 +203,11 @@ export default function BossPage({ refreshCharacter }) {
         </>
       )}
 
-      <SectionHeader>JOIN BY URL</SectionHeader>
-      <div className="stone-panel" style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
-        <input
-          type="text"
-          value={joinInput}
-          onChange={e => setJoinInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && joinInput.trim() && handleJoin(joinInput)}
-          placeholder="Host URL..."
-          style={{
-            flex: 1,
-            background: 'var(--color-bg)',
-            border: '1px solid var(--color-border)',
-            borderRadius: '4px',
-            color: 'var(--color-text)',
-            padding: '7px 10px',
-            fontSize: '0.82rem',
-          }}
-        />
-        <button
-          className="bevel-btn"
-          onClick={() => joinInput.trim() && handleJoin(joinInput)}
-          disabled={!joinInput.trim() || joining === joinInput.trim()}
-        >
-          {joining ? 'Joining...' : 'JOIN'}
-        </button>
-      </div>
-
       {revealed.length > 0 && (
         <>
           <SectionHeader>REVEALED THREATS</SectionHeader>
           {revealed.map(boss => (
-            <div key={boss.id} className="stone-panel" style={{ marginBottom: '10px' }}>
+            <div key={boss.id} className="stone-panel" style={{ padding: '14px', marginBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '0.9rem', fontWeight: 600 }}>{boss.name}</span>
                 <TierBadge tier={boss.tier} />
@@ -267,7 +234,7 @@ export default function BossPage({ refreshCharacter }) {
         <>
           <SectionHeader>RECENT</SectionHeader>
           {recent.map((entry, i) => (
-            <div key={i} className="stone-panel" style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={i} className="stone-panel" style={{ padding: '12px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '0.82rem' }}>{entry.boss.name}</span>
                 <span style={{
@@ -294,6 +261,6 @@ export default function BossPage({ refreshCharacter }) {
       {isEmpty && (
         <div className="empty-state">No threats detected. Explore the world to reveal bosses.</div>
       )}
-    </div>
+    </>
   );
 }

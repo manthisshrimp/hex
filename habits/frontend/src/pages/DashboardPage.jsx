@@ -475,7 +475,7 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
           padding: '10px 16px',
           marginBottom: '12px',
           cursor: 'pointer',
-        }} onClick={() => navigate('/boss')}>
+        }} onClick={() => navigate('/habits?tab=boss')}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontFamily: "'Cinzel', serif", fontSize: '0.8rem', color: '#c04040', letterSpacing: '0.12em' }}>
               ⚔ {boss.active.boss?.name ?? 'UNKNOWN THREAT'}
@@ -506,7 +506,7 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
           cursor: 'pointer',
           fontSize: '0.78rem',
           color: '#b07820',
-        }} onClick={() => navigate('/boss')}>
+        }} onClick={() => navigate('/habits?tab=boss')}>
           ⚠ A threat has been revealed — visit the Boss tab
         </div>
       )}
@@ -519,7 +519,7 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
           cursor: 'pointer',
           fontSize: '0.78rem',
           color: '#3090b0',
-        }} onClick={() => navigate('/boss')}>
+        }} onClick={() => navigate('/habits?tab=boss')}>
           ⚔ You have been invited to join a boss quest
         </div>
       )}

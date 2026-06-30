@@ -165,6 +165,22 @@ pub async fn post_launch(
     let boss_def = boss_cat::find(&body.boss_id)
         .ok_or_else(|| AppError::Validation("Unknown boss".to_string()))?;
 
+    // Only one boss per party at a time — reject if any member is already hosting.
+    let party = state.store.party.get();
+    let client = make_client()?;
+    for member in &party.members {
+        let active_url = habits_url(&member.url, "/api/boss/active");
+        if let Ok(resp) = client.get(&active_url).send().await {
+            if let Ok(Some(hq)) = resp.json::<Option<HostedQuest>>().await {
+                if hq.status == "active" {
+                    return Err(AppError::Validation(
+                        "A party member already has an active boss quest — join theirs instead.".to_string(),
+                    ));
+                }
+            }
+        }
+    }
+
     let my = my_url();
     let today_str = game::today_str();
     let today = game::today();
@@ -415,6 +431,8 @@ pub async fn get_boss(
             let boss_def = boss_cat::find(&p.boss_id);
 
             let my = my_url();
+            let char_name = state.store.character.get().name
+                .unwrap_or_else(|| "You".to_string());
             let my_contribution = quest
                 .and_then(|q| q.contributions.get(&my))
                 .map(|c| c.total)
@@ -435,13 +453,26 @@ pub async fn get_boss(
                 })
             }).collect();
 
-            // Leaderboard from cached state
+            // Leaderboard from cached state — resolve URLs to party member names
             let leaderboard: Vec<Value> = quest.map(|q| {
                 let mut entries: Vec<_> = q.contributions.iter()
                     .map(|(url, c)| (url.clone(), c.total))
                     .collect();
                 entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-                entries.into_iter().map(|(url, total)| json!({ "url": url, "total": total })).collect()
+                entries.into_iter().map(|(url, total)| {
+                    let trimmed = url.trim_end_matches('/');
+                    let is_me = trimmed == my.trim_end_matches('/');
+                    let name = if is_me {
+                        char_name.clone()
+                    } else {
+                        party.members.iter()
+                            .find(|m| m.url.trim_end_matches('/') == trimmed)
+                            .and_then(|m| m.cached_public.as_ref())
+                            .and_then(|pc| pc.name.clone())
+                            .unwrap_or_else(|| trimmed.replace("https://", "").replace("http://", ""))
+                    };
+                    json!({ "name": name, "total": total, "isMe": is_me })
+                }).collect()
             }).unwrap_or_default();
 
             Some(json!({
