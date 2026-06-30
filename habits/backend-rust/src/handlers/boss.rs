@@ -32,6 +32,15 @@ fn my_url() -> String {
     std::env::var("MY_URL").unwrap_or_else(|_| "http://localhost:3000".to_string())
 }
 
+/// Player identity in a boss quest. Uses the character name (set on the
+/// Character page) so contributions work across nodes without per-node URL
+/// config. Party members should pick distinct names.
+pub fn my_name(state: &AppState) -> String {
+    state.store.character.get().name
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| "Adventurer".to_string())
+}
+
 // ── GET /api/boss/active (no auth, peer-to-peer) ──────────────────────────────
 
 pub async fn get_active(
@@ -70,16 +79,16 @@ pub async fn post_participants(
         .filter(|h| h.status == "active")
         .ok_or_else(|| AppError::Validation("No active hosted quest".to_string()))?;
 
-    let url = body.url.trim_end_matches('/').to_string();
+    let name = body.name.trim().to_string();
 
     // Idempotent
-    if hosted.contributions.contains_key(&url) {
+    if hosted.contributions.contains_key(&name) {
         return Ok(Json(json!({ "ok": true })));
     }
 
     // HP is fixed — joining adds a contributor but does not raise the pool, so
     // every member (even a late one) only speeds the kill.
-    hosted.contributions.insert(url, MemberContribution { last_date: "".to_string(), total: 0.0 });
+    hosted.contributions.insert(name, MemberContribution { last_date: "".to_string(), total: 0.0 });
 
     state.store.boss.save(boss).await?;
     Ok(Json(json!({ "ok": true })))
@@ -100,9 +109,9 @@ pub async fn post_contribute(
         return Err(AppError::Validation("Quest is not active".to_string()));
     }
 
-    let url = body.url.trim_end_matches('/').to_string();
+    let name = body.name.trim().to_string();
 
-    let contrib = hosted.contributions.get_mut(&url)
+    let contrib = hosted.contributions.get_mut(&name)
         .ok_or_else(|| AppError::Validation("Not a participant".to_string()))?;
 
     // Idempotent: same or earlier date → no-op, return current state
@@ -176,6 +185,7 @@ pub async fn post_launch(
     }
 
     let my = my_url();
+    let my_name = my_name(&state);
     let today_str = game::today_str();
     let today = game::today();
     let ends_at = (today + chrono::Duration::days(boss_def.duration_days as i64))
@@ -186,12 +196,12 @@ pub async fn post_launch(
     let hp_pool = boss_def.base_hp;
 
     let mut contributions = std::collections::HashMap::new();
-    contributions.insert(my.clone(), MemberContribution { last_date: "".to_string(), total: 0.0 });
+    contributions.insert(my_name.clone(), MemberContribution { last_date: "".to_string(), total: 0.0 });
 
     let hosted = HostedQuest {
         quest_id: quest_id.clone(),
         boss_id: body.boss_id.clone(),
-        host_url: my.clone(),
+        host_url: my.clone(), // addressing/display only — identity is the name
         started_at: today_str.clone(),
         duration_days: boss_def.duration_days,
         ends_at: ends_at.clone(),
@@ -215,6 +225,7 @@ pub async fn post_launch(
         reward_claimed: false,
         resolved_at: None,
         cached_state: Some(hosted.clone()),
+        is_host: true,
     };
 
     boss.hosted = Some(hosted);
@@ -259,7 +270,7 @@ pub async fn post_join(
         .filter(|q| q.status == "active")
         .ok_or_else(|| AppError::Validation("Host has no active quest".to_string()))?;
 
-    let my = my_url();
+    let my_name = my_name(&state);
 
     let participation = Participation {
         quest_id: host_quest.quest_id.clone(),
@@ -274,6 +285,7 @@ pub async fn post_join(
         reward_claimed: false,
         resolved_at: None,
         cached_state: Some(host_quest),
+        is_host: false,
     };
 
     boss.participating = Some(participation);
@@ -282,7 +294,7 @@ pub async fn post_join(
     // Best-effort: register at host (outbox handles retry if this fails)
     if let Ok(client) = make_client() {
         let part_url = habits_url(&host_url, "/api/boss/participants");
-        let _ = client.post(&part_url).json(&json!({ "url": my })).send().await;
+        let _ = client.post(&part_url).json(&json!({ "name": my_name })).send().await;
     }
 
     Ok(Json(json!({ "ok": true })))
@@ -342,13 +354,13 @@ pub async fn get_boss(
     if let Some(ref mut p) = boss.participating {
         if p.outcome.is_none() && !p.outbox.is_empty() {
             let host_url = p.host_url.clone();
-            let my = my_url();
+            let my_name = my_name(&state);
             let contribute_url = habits_url(&host_url, "/api/boss/contribute");
             let mut flushed = vec![];
             for entry in &p.outbox {
                 let ok = client
                     .post(&contribute_url)
-                    .json(&json!({ "url": my, "date": entry.date, "p": entry.p }))
+                    .json(&json!({ "name": my_name, "date": entry.date, "p": entry.p }))
                     .send()
                     .await
                     .map(|r| r.status().is_success())
@@ -434,11 +446,9 @@ pub async fn get_boss(
             let quest = p.cached_state.as_ref();
             let boss_def = boss_cat::find(&p.boss_id);
 
-            let my = my_url();
-            let char_name = state.store.character.get().name
-                .unwrap_or_else(|| "You".to_string());
+            let my_name = my_name(&state);
             let my_contribution = quest
-                .and_then(|q| q.contributions.get(&my))
+                .and_then(|q| q.contributions.get(&my_name))
                 .map(|c| c.total)
                 .unwrap_or(0.0);
             let my_contributed_today = p.last_contributed_date == today_str;
@@ -468,24 +478,14 @@ pub async fn get_boss(
             let eff_mult = game::boss_effective_multiplier(base_mult, gear_armor);
             let damage_bonus = game::boss_damage_gear_bonus(gear_damage);
 
-            // Leaderboard from cached state — resolve URLs to party member names
+            // Leaderboard — contributions are keyed by player name directly.
             let leaderboard: Vec<Value> = quest.map(|q| {
                 let mut entries: Vec<_> = q.contributions.iter()
-                    .map(|(url, c)| (url.clone(), c.total))
+                    .map(|(name, c)| (name.clone(), c.total))
                     .collect();
                 entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-                entries.into_iter().map(|(url, total)| {
-                    let trimmed = url.trim_end_matches('/');
-                    let is_me = trimmed == my.trim_end_matches('/');
-                    let name = if is_me {
-                        char_name.clone()
-                    } else {
-                        party.members.iter()
-                            .find(|m| m.url.trim_end_matches('/') == trimmed)
-                            .and_then(|m| m.cached_public.as_ref())
-                            .and_then(|pc| pc.name.clone())
-                            .unwrap_or_else(|| trimmed.replace("https://", "").replace("http://", ""))
-                    };
+                entries.into_iter().map(|(name, total)| {
+                    let is_me = name == my_name;
                     json!({ "name": name, "total": total, "isMe": is_me })
                 }).collect()
             }).unwrap_or_default();

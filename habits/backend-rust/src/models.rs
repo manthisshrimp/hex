@@ -447,6 +447,8 @@ pub struct Participation {
     pub reward_claimed: bool,
     pub resolved_at: Option<String>,
     pub cached_state: Option<HostedQuest>, // last poll of host, for rendering
+    #[serde(default)]
+    pub is_host: bool,                     // true when we launched (apply locally)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -478,13 +480,13 @@ pub struct JoinBossRequest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParticipantRequest {
-    pub url: String,
+    pub name: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContributeRequest {
-    pub url: String,
+    pub name: String,
     pub date: String,
     pub p: f64,
 }

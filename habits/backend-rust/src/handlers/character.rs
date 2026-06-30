@@ -73,15 +73,14 @@ async fn apply_boss_outputs(
         return;
     }
 
-    let my_url = std::env::var("MY_URL")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let my_name = crate::handlers::boss::my_name(state);
 
-    if p.host_url == my_url {
+    if p.is_host {
         // Self-hosted: apply directly to hosted quest.
         if let Some(ref mut hosted) = bs.hosted {
             let today_str = game::today_str();
             let entry = hosted.contributions
-                .entry(my_url.clone())
+                .entry(my_name.clone())
                 .or_insert(MemberContribution { last_date: String::new(), total: 0.0 });
             if contrib.date > entry.last_date {
                 hosted.hp_remaining -= contrib.p;
@@ -108,7 +107,7 @@ async fn apply_boss_outputs(
             .build()
             .unwrap_or_else(|_| Client::new());
         let payload = serde_json::json!({
-            "url": my_url,
+            "name": my_name,
             "date": contrib.date,
             "p": contrib.p,
         });
