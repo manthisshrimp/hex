@@ -257,11 +257,6 @@ pub fn daily_completion(due: u32, done: u32) -> f64 {
     (done as f64 / due as f64).min(1.0)
 }
 
-/// Shared boss HP pool, scaled by roster size so difficulty (avg θ needed) is
-/// invariant to party size.
-pub fn boss_hp_pool(participants: u32, duration_days: u32, threshold: f64) -> f64 {
-    participants as f64 * duration_days as f64 * threshold
-}
 
 /// Subtract `wear` from each equipped item's current durability.
 /// Missing durability entry is treated as full (`max_durability` from the item).
@@ -655,16 +650,6 @@ mod tests {
     #[test]
     fn daily_completion_clamped_to_one() {
         assert_eq!(daily_completion(2, 5), 1.0);
-    }
-
-    // ── boss_hp_pool ─────────────────────────────────────────────────────────
-
-    #[test]
-    fn boss_hp_pool_scales_with_participants() {
-        let solo = boss_hp_pool(1, 7, 0.6);
-        let duo  = boss_hp_pool(2, 7, 0.6);
-        assert!((solo - 4.2).abs() < 1e-9);
-        assert!((duo  - 8.4).abs() < 1e-9);
     }
 
     // ── apply_wear ───────────────────────────────────────────────────────────

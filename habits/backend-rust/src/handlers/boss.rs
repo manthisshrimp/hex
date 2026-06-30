@@ -77,16 +77,9 @@ pub async fn post_participants(
         return Ok(Json(json!({ "ok": true })));
     }
 
-    let delta = hosted.duration_days as f64 * {
-        // find threshold from catalogue
-        boss_cat::find(&hosted.boss_id)
-            .map(|b| b.threshold)
-            .unwrap_or(0.0)
-    };
-
+    // HP is fixed — joining adds a contributor but does not raise the pool, so
+    // every member (even a late one) only speeds the kill.
     hosted.contributions.insert(url, MemberContribution { last_date: "".to_string(), total: 0.0 });
-    hosted.hp_pool += delta;
-    hosted.hp_remaining += delta;
 
     state.store.boss.save(boss).await?;
     Ok(Json(json!({ "ok": true })))
@@ -188,7 +181,8 @@ pub async fn post_launch(
         .format("%Y-%m-%d")
         .to_string();
     let quest_id = Uuid::new_v4().to_string();
-    let hp_pool = boss_def.duration_days as f64 * boss_def.threshold;
+    // Fixed HP — independent of party size, so partying up only speeds the kill.
+    let hp_pool = boss_def.base_hp;
 
     let mut contributions = std::collections::HashMap::new();
     contributions.insert(my.clone(), MemberContribution { last_date: "".to_string(), total: 0.0 });
@@ -590,6 +584,7 @@ fn boss_def_to_json(def: &BossDef) -> Value {
         "tier": def.tier,
         "revealText": def.reveal_text,
         "durationDays": def.duration_days,
+        "baseHp": def.base_hp,
         "threshold": def.threshold,
         "damageMultiplier": def.damage_multiplier,
         "rewardGold": def.reward_gold,

@@ -13,6 +13,13 @@ pub struct BossDef {
     /// Flavour shown the moment this boss is sighted/revealed.
     pub reveal_text: &'static str,
     pub duration_days: u32,
+    /// Fixed total HP (in p-units), independent of party size. A solo player
+    /// can deal at most `duration_days × 1.0` over the quest, so any boss with
+    /// `base_hp > duration_days` requires a party. Only lesser bosses are set
+    /// below that line and are soloable.
+    pub base_hp: f64,
+    /// Target average daily completion — informational difficulty hint only;
+    /// no longer drives HP.
     pub threshold: f64,
     pub damage_multiplier: f64,
     pub reward_gold: f64,
@@ -33,6 +40,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 50,
             reveal_text: "Paw-prints the size of shields circle the camp. Something has been watching, and it is hungry.",
             duration_days: 5,
+            base_hp: 2.5,
             threshold: 0.50,
             damage_multiplier: 1.25,
             reward_gold: 300.0,
@@ -49,6 +57,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 50,
             reveal_text: "The fen has gone silent. No frogs, no birds — only a slow, wet breathing somewhere beneath the reeds.",
             duration_days: 6,
+            base_hp: 3.0,
             threshold: 0.55,
             damage_multiplier: 1.3,
             reward_gold: 450.0,
@@ -66,6 +75,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 22,
             reveal_text: "A messenger collapses at the gate, robes seared black. The Ashwarden has woken, and its embers march on every keep in the vale.",
             duration_days: 7,
+            base_hp: 9.0,
             threshold: 0.65,
             damage_multiplier: 1.5,
             reward_gold: 600.0,
@@ -82,6 +92,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 22,
             reveal_text: "The horizon blackens out of season. Thunder rolls with a cadence too deliberate to be weather.",
             duration_days: 8,
+            base_hp: 10.0,
             threshold: 0.70,
             damage_multiplier: 1.6,
             reward_gold: 850.0,
@@ -98,6 +109,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 22,
             reveal_text: "Far out on the black water a bell tolls where no bell should be. The Dreadtide rises with the dark moon.",
             duration_days: 10,
+            base_hp: 14.0,
             threshold: 0.75,
             damage_multiplier: 1.75,
             reward_gold: 1000.0,
@@ -115,6 +127,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 8,
             reveal_text: "You find a throne room of dust and crowns, every seat filled by a king who never finished his reign. One throne stands empty, waiting.",
             duration_days: 12,
+            base_hp: 26.0,
             threshold: 0.82,
             damage_multiplier: 1.9,
             reward_gold: 1500.0,
@@ -131,6 +144,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 8,
             reveal_text: "The watchtower is cold, its lanterns long dead, its sentinels standing yet unbreathing — keeping an endless vigil for a foe that never tires.",
             duration_days: 14,
+            base_hp: 35.0,
             threshold: 0.90,
             damage_multiplier: 2.0,
             reward_gold: 2000.0,
@@ -148,6 +162,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 2,
             reveal_text: "The stars are wrong tonight. A seam of nothing has opened across the sky, and through it something vast and patient regards you.",
             duration_days: 18,
+            base_hp: 63.0,
             threshold: 0.95,
             damage_multiplier: 2.5,
             reward_gold: 3500.0,
@@ -194,6 +209,20 @@ mod tests {
     #[test]
     fn catalogue_has_eight_bosses() {
         assert_eq!(catalogue().len(), 8);
+    }
+
+    #[test]
+    fn only_lesser_bosses_are_soloable() {
+        // Solo max damage over a quest = duration_days × 1.0 (perfect play).
+        // Fixed base_hp at or below that is soloable; above it needs a party.
+        for b in catalogue() {
+            let soloable = b.base_hp <= b.duration_days as f64;
+            assert_eq!(
+                soloable, b.tier == "lesser",
+                "boss {} (tier {}): base_hp {} vs duration {} → soloable={}, expected only-lesser",
+                b.id, b.tier, b.base_hp, b.duration_days, soloable
+            );
+        }
     }
 
     #[test]

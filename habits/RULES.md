@@ -289,10 +289,13 @@ player). Launch and join are no-ops if a quest is already active.
 
 ### Shared HP
 
-The party fights a **single boss with one shared HP bar**, owned by the host:
+The party fights a **single boss with one shared, fixed HP bar**, owned by the
+host:
 
-- `hp_pool = participants × duration_days × threshold`
-- Each member's `hp_pool` share grows by `D × θ` each time someone joins.
+- `hp_pool = base_hp` — a **fixed value per boss, independent of party size**.
+- Joining does **not** raise the pool; it only adds a contributor. So every
+  member, even a late joiner, only speeds the kill — partying up is always an
+  advantage.
 - Victory when `hp_remaining ≤ 0` before `ends_at`.
 
 Each day, every participant's **daily completion** `p(d)` is reported to the
@@ -302,6 +305,11 @@ host, which subtracts it from `hp_remaining`:
 - `due(d)` = active non-inscribed habits (all habits count every day).
 - `done(d)` = habits with a completion on day `d`.
 - Days with no habits due: `p(d) = 1.0` (full credit).
+
+A solo player can deal at most `duration_days × 1.0` over the whole quest, so a
+boss with `base_hp > duration_days` **cannot be soloed** and needs a party.
+Only **lesser** bosses are tuned below that line; everything tougher is balanced
+around a multi-member party (see the table).
 
 ### Extra damage
 
@@ -331,13 +339,17 @@ Defeat grants nothing. Ended quests are visible for 30 days, then pruned.
 Reveal weight rises as difficulty falls, so players meet easy bosses first and
 the hardest only occasionally.
 
-| Boss | Tier | Reveal weight | Duration | Avg % needed | Damage × | Reward gold |
-|---|---|---|---|---|---|---|
-| Gloomfang *(starter)* | lesser | 50 | 5 days | 50% | 1.25× | 300 |
-| The Mirefen Lurker | lesser | 50 | 6 days | 55% | 1.3× | 450 |
-| The Ashwarden | greater | 22 | 7 days | 65% | 1.5× | 600 |
-| The Stormcaller | greater | 22 | 8 days | 70% | 1.6× | 850 |
-| Dreadtide | greater | 22 | 10 days | 75% | 1.75× | 1000 |
-| The Hollow King | ancient | 8 | 12 days | 82% | 1.9× | 1500 |
-| The Undying Vigil | ancient | 8 | 14 days | 90% | 2.0× | 2000 |
-| The Sundering | mythic | 2 | 18 days | 95% | 2.5× | 3500 |
+Boss HP is **fixed** (shown ×100, matching the UI). "Min party" is the smallest
+roster that can win with *perfect* daily play (`ceil(HP / duration)`); realistic
+completion rates need more. Only lesser bosses are soloable.
+
+| Boss | Tier | Reveal weight | Duration | Boss HP | Min party | Damage × | Reward gold |
+|---|---|---|---|---|---|---|---|
+| Gloomfang *(starter)* | lesser | 50 | 5 days | 250 | 1 (solo) | 1.25× | 300 |
+| The Mirefen Lurker | lesser | 50 | 6 days | 300 | 1 (solo) | 1.3× | 450 |
+| The Ashwarden | greater | 22 | 7 days | 900 | 2 | 1.5× | 600 |
+| The Stormcaller | greater | 22 | 8 days | 1000 | 2 | 1.6× | 850 |
+| Dreadtide | greater | 22 | 10 days | 1400 | 2 | 1.75× | 1000 |
+| The Hollow King | ancient | 8 | 12 days | 2600 | 3 | 1.9× | 1500 |
+| The Undying Vigil | ancient | 8 | 14 days | 3500 | 3 | 2.0× | 2000 |
+| The Sundering | mythic | 2 | 18 days | 6300 | 4 | 2.5× | 3500 |
