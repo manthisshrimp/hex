@@ -472,6 +472,42 @@ pub fn catalogue() -> Vec<EventDef> {
             },
             reveals_boss: Some("gloomfang"),
         },
+        EventDef {
+            id: "scorched_messenger",
+            title: "Ash on the Wind",
+            text: "A messenger collapses at the gate, robes seared black. \"The Ashwarden has woken,\" he breathes. \"Its embers march on every keep in the vale. We must answer fire with fellowship.\"",
+            kind: EventKind::Passive {
+                stat: StatType::None,
+                tiers: vec![
+                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The smell of cinders lingers. A greater threat now stalks the realm.", hp_delta: 0.0, gold_delta: 0.0 } },
+                ],
+            },
+            reveals_boss: Some("ashwarden"),
+        },
+        EventDef {
+            id: "drowned_bell",
+            title: "The Drowned Bell",
+            text: "Far out on the black water a bell tolls where no bell should be. Sailors speak of the Dreadtide — a thing that rises with the dark moon and drags the coast beneath it. The tolling is a summons.",
+            kind: EventKind::Passive {
+                stat: StatType::None,
+                tiers: vec![
+                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The tide pulls at your resolve. Rally your allies before it crests.", hp_delta: 0.0, gold_delta: 0.0 } },
+                ],
+            },
+            reveals_boss: Some("dreadtide"),
+        },
+        EventDef {
+            id: "the_silent_vigil",
+            title: "Where the Lanterns Failed",
+            text: "You find the watchtower cold, its lanterns long dead, its sentinels standing yet unbreathing. They keep an endless vigil for a foe that never tires. The Undying Vigil has marked this land — and only a host united may end it.",
+            kind: EventKind::Passive {
+                stat: StatType::None,
+                tiers: vec![
+                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "An ancient dread settles over you. This is no foe to face alone.", hp_delta: 0.0, gold_delta: 0.0 } },
+                ],
+            },
+            reveals_boss: Some("the_undying_vigil"),
+        },
     ]
 }
 
@@ -538,9 +574,30 @@ mod tests {
     }
 
     #[test]
-    fn existing_events_have_none_reveals() {
+    fn every_boss_has_a_reveal_event() {
         let cat = catalogue();
-        let reveals_count = cat.iter().filter(|e| e.reveals_boss.is_some()).count();
-        assert_eq!(reveals_count, 1, "exactly one reveal event expected");
+        let revealed: std::collections::HashSet<&str> =
+            cat.iter().filter_map(|e| e.reveals_boss).collect();
+        for boss in crate::bosses_catalogue::catalogue() {
+            assert!(
+                revealed.contains(boss.id),
+                "boss {} has no reveal event — unreachable in-game",
+                boss.id
+            );
+        }
+    }
+
+    #[test]
+    fn reveal_targets_exist_in_boss_catalogue() {
+        let cat = catalogue();
+        for ev in cat.iter() {
+            if let Some(id) = ev.reveals_boss {
+                assert!(
+                    crate::bosses_catalogue::find(id).is_some(),
+                    "event {} reveals unknown boss {}",
+                    ev.id, id
+                );
+            }
+        }
     }
 }
