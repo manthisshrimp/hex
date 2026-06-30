@@ -356,12 +356,17 @@ can't crack a greater+ boss.
 
 ### Gear degradation
 
-Equipped gear **wears** each boss-day by a small, tier-scaled amount
-(`wear_per_day`): **1** for lesser, **2** for greater/ancient, **3** for mythic.
-Even the longest fight never destroys a fresh item in one go (e.g. The Sundering
-= 3 × 18 = 54 of 100 durability). When an item's durability reaches `0` it
-**breaks**: removed from equipped and inventory, logged as a casualty in the
-end-of-quest summary. Gear is consumable — no repair; the shop is the re-buy sink.
+Equipped gear **wears** by a small, tier-scaled amount (`wear_per_day`): **1**
+for lesser, **2** for greater/ancient, **3** for mythic — but **only on a
+boss-day where you actually took a hit** (missed a habit). A flawless day costs
+no durability, so a confident player never wears gear and has no reason to strip
+it. Wear is tied to failure. When an item's durability reaches `0` it **breaks**:
+removed from equipped and inventory, logged as a casualty in the end-of-quest
+summary. Gear is consumable — no repair; the shop is the re-buy sink.
+
+**Loadout lock:** while you are in an active boss quest, equip/unequip is
+blocked. You commit your gear up front and pay the (light) wear — no stripping
+it day-to-day to dodge the cost.
 
 Wear is a **tax, not the point** — the real payoff is the gold and the chance at
 a **unique (`rnw-`) item**, the strongest gear in the game and otherwise only

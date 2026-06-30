@@ -74,6 +74,7 @@ pub fn process_tick(input: TickInput) -> TickOutput {
 
     let mut hp_delta: f64 = 0.0;
     let mut gold_delta: f64 = 0.0;
+    let mut took_miss_damage = false;
     let mut health_events: Vec<HealthEvent> = Vec::new();
     let mut gold_events: Vec<GoldEvent> = Vec::new();
     let mut deadline_updates: Vec<DeadlineUpdate> = Vec::new();
@@ -109,6 +110,7 @@ pub fn process_tick(input: TickInput) -> TickOutput {
                 // Damage
                 let eff_mult = game::boss_effective_multiplier(input.boss_damage_multiplier, input.boss_armor);
                 let damage = miss_damage(config, &habit.importance, maturity) * eff_mult;
+                took_miss_damage = true;
                 hp_delta -= damage;
                 cur_health_removed += damage;
                 health_events.push(HealthEvent {
@@ -195,7 +197,10 @@ pub fn process_tick(input: TickInput) -> TickOutput {
     } else {
         None
     };
-    let gear_wear = if input.boss_active { input.boss_wear_per_day } else { 0 };
+    // Gear only wears on boss-days where you actually took a hit (missed a
+    // habit). A flawless day costs no durability — so a confident player has no
+    // reason to strip gear, and wear is tied to failure.
+    let gear_wear = if input.boss_active && took_miss_damage { input.boss_wear_per_day } else { 0 };
 
     // ── Finalise HP, gold, and renown ────────────────────────────────────────
     let new_hp = (input.current_hp + hp_delta).clamp(0.0, config.max_hp);
@@ -706,7 +711,25 @@ mod tests {
         assert_eq!(contrib.date, "2026-04-25");
         // 1/1 perfect = tanh(1/5) × 1.0 ≈ 0.197 (effort ramp, not full credit).
         assert!((contrib.p - 0.1974).abs() < 1e-3, "1/1 → p ≈ 0.197, got {}", contrib.p);
-        assert_eq!(out.gear_wear, 8);
+        // Habit completed, deadline not missed → no miss damage → no wear.
+        assert_eq!(out.gear_wear, 0, "flawless boss-day should not wear gear");
+    }
+
+    #[test]
+    fn gear_wears_only_when_miss_damage_taken() {
+        let tick_date = date("2026-04-25");
+        let habit = make_daily_habit("h1", "Read", Importance::Low);
+        let mut deadlines = HashMap::new();
+        // Deadline strictly before the tick date → missed → damage taken.
+        deadlines.insert("h1".to_string(), date("2026-04-24"));
+        let input = TickInput {
+            date: tick_date, habits: vec![habit], deadlines, completions: vec![],
+            current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
+            config: GameConfig::default(),
+            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8, boss_armor: 0, boss_damage: 0,
+        };
+        let out = process_tick(input);
+        assert_eq!(out.gear_wear, 8, "a missed boss-day should wear gear");
     }
 
     #[test]

@@ -8,6 +8,14 @@ const VALID_SLOTS: &[&str] = &[
     "weapon", "offhand", "helm", "chest", "gloves", "belt", "boots", "amulet", "ring1", "ring2",
 ];
 
+/// Loadout is locked while in an active boss quest — you commit your gear up
+/// front and pay the (light) wear, rather than stripping it to dodge wear.
+fn loadout_locked(state: &AppState) -> bool {
+    state.store.boss.get().participating
+        .map(|p| p.outcome.is_none())
+        .unwrap_or(false)
+}
+
 // ── GET /api/equipment ────────────────────────────────────────────────────────
 
 pub async fn get_equipment(
@@ -47,6 +55,10 @@ pub async fn equip_item(
     Path(id): Path<String>,
 ) -> Result<Json<Value>, AppError> {
     super::require_auth(&headers, &state).await?;
+
+    if loadout_locked(&state) {
+        return Err(AppError::Validation("Gear is locked during an active boss quest.".to_string()));
+    }
 
     // Verify item exists in catalogue.
     let item = state.catalogue.iter()
@@ -94,6 +106,10 @@ pub async fn unequip_slot(
     Path(slot): Path<String>,
 ) -> Result<Json<Value>, AppError> {
     super::require_auth(&headers, &state).await?;
+
+    if loadout_locked(&state) {
+        return Err(AppError::Validation("Gear is locked during an active boss quest.".to_string()));
+    }
 
     if !VALID_SLOTS.contains(&slot.as_str()) {
         return Err(AppError::Validation(format!("Invalid slot: {slot}")));
