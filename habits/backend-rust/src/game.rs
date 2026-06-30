@@ -250,11 +250,20 @@ pub fn compute_consistency_windowed(
 
 // ── Boss fight helpers ────────────────────────────────────────────────────────
 
-/// Fraction of today's due habits completed. `due == 0` yields 1.0 (full credit
-/// — a rest day helps the party). Clamped to [0, 1].
+/// Per-day boss damage from a member's habit completions, in [0, 1).
+///
+/// Two factors, multiplied so both matter:
+/// - **consistency** = `done / due` (clamped to 1) — punishes inconsistency.
+/// - **effort** = `tanh(done / 5)` — rewards raw volume on a concave ramp that
+///   saturates near 5 completions and never quite reaches 1.0.
+///
+/// A rest day (`due == 0`) yields 0 — nothing was done toward the boss, so it
+/// deals no damage (a perfect 9/10 must out-damage an empty day).
 pub fn daily_completion(due: u32, done: u32) -> f64 {
-    if due == 0 { return 1.0; }
-    (done as f64 / due as f64).min(1.0)
+    if due == 0 { return 0.0; }
+    let consistency = (done as f64 / due as f64).min(1.0);
+    let effort = (done as f64 / 5.0).tanh();
+    effort * consistency
 }
 
 
@@ -638,18 +647,40 @@ mod tests {
     // ── daily_completion ─────────────────────────────────────────────────────
 
     #[test]
-    fn daily_completion_zero_due_gives_full_credit() {
-        assert_eq!(daily_completion(0, 0), 1.0);
+    fn daily_completion_rest_day_deals_nothing() {
+        assert_eq!(daily_completion(0, 0), 0.0);
     }
 
     #[test]
-    fn daily_completion_partial() {
-        assert!((daily_completion(4, 3) - 0.75).abs() < 1e-9);
+    fn daily_completion_two_of_two_capped_under_half() {
+        // 2/2 perfect = tanh(0.4) × 1.0 ≈ 0.380 — must stay ≤ 0.5.
+        let p = daily_completion(2, 2);
+        assert!((p - 0.3799).abs() < 1e-3, "got {p}");
+        assert!(p <= 0.5);
     }
 
     #[test]
-    fn daily_completion_clamped_to_one() {
-        assert_eq!(daily_completion(2, 5), 1.0);
+    fn daily_completion_inconsistency_punished() {
+        // 4/10 = tanh(4/5) × 0.4 ≈ 0.266 — well below a perfect 5/5.
+        let partial = daily_completion(10, 4);
+        let perfect5 = daily_completion(5, 5); // tanh(1) ≈ 0.762
+        assert!((partial - 0.2656).abs() < 1e-3, "got {partial}");
+        assert!(partial < perfect5);
+    }
+
+    #[test]
+    fn daily_completion_beats_empty_day() {
+        // The motivating case: 9/10 must out-damage a rest day.
+        assert!(daily_completion(10, 9) > daily_completion(0, 0));
+    }
+
+    #[test]
+    fn daily_completion_effort_is_concave() {
+        // tanh ramp: marginal gain per completion diminishes.
+        let d1 = daily_completion(1, 1);
+        let d2 = daily_completion(2, 2);
+        let d3 = daily_completion(3, 3);
+        assert!(d2 - d1 > d3 - d2);
     }
 
     // ── apply_wear ───────────────────────────────────────────────────────────

@@ -13,10 +13,11 @@ pub struct BossDef {
     /// Flavour shown the moment this boss is sighted/revealed.
     pub reveal_text: &'static str,
     pub duration_days: u32,
-    /// Fixed total HP (in p-units), independent of party size. A solo player
-    /// can deal at most `duration_days × 1.0` over the quest, so any boss with
-    /// `base_hp > duration_days` requires a party. Only lesser bosses are set
-    /// below that line and are soloable.
+    /// Fixed total HP (in p-units), independent of party size. Daily damage is
+    /// `daily_completion` ∈ [0, 1): a casual perfect day (3/3) ≈ 0.54, a good
+    /// day (5/5) ≈ 0.76, a maxed day (10/10) ≈ 0.96. Only lesser bosses have
+    /// `base_hp` low enough that a solo player at ~3/3 can finish in time;
+    /// greater+ are unsoloable even at 10/10 every day and need a party.
     pub base_hp: f64,
     /// Target average daily completion — informational difficulty hint only;
     /// no longer drives HP.
@@ -40,7 +41,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 50,
             reveal_text: "Paw-prints the size of shields circle the camp. Something has been watching, and it is hungry.",
             duration_days: 5,
-            base_hp: 2.5,
+            base_hp: 2.3,
             threshold: 0.50,
             damage_multiplier: 1.25,
             reward_gold: 300.0,
@@ -57,7 +58,7 @@ pub fn catalogue() -> Vec<BossDef> {
             reveal_weight: 50,
             reveal_text: "The fen has gone silent. No frogs, no birds — only a slow, wet breathing somewhere beneath the reeds.",
             duration_days: 6,
-            base_hp: 3.0,
+            base_hp: 2.7,
             threshold: 0.55,
             damage_multiplier: 1.3,
             reward_gold: 450.0,
@@ -212,16 +213,27 @@ mod tests {
     }
 
     #[test]
-    fn only_lesser_bosses_are_soloable() {
-        // Solo max damage over a quest = duration_days × 1.0 (perfect play).
-        // Fixed base_hp at or below that is soloable; above it needs a party.
+    fn difficulty_matches_tier() {
+        use crate::game::daily_completion;
+        let casual = daily_completion(3, 3);  // ~0.537 — a modest perfect day
+        let maxed = daily_completion(10, 10); // ~0.964 — best possible day
         for b in catalogue() {
-            let soloable = b.base_hp <= b.duration_days as f64;
-            assert_eq!(
-                soloable, b.tier == "lesser",
-                "boss {} (tier {}): base_hp {} vs duration {} → soloable={}, expected only-lesser",
-                b.id, b.tier, b.base_hp, b.duration_days, soloable
-            );
+            let d = b.duration_days as f64;
+            if b.tier == "lesser" {
+                // A casual 3/3-per-day solo run must finish a lesser boss.
+                assert!(
+                    b.base_hp <= casual * d,
+                    "lesser {} should fall to 3/3 solo: base_hp {} > {:.2}",
+                    b.id, b.base_hp, casual * d
+                );
+            } else {
+                // Everything tougher must survive even a maxed 10/10 solo run.
+                assert!(
+                    b.base_hp > maxed * d,
+                    "{} {} must be unsoloable: base_hp {} <= {:.2} (10/10 solo total)",
+                    b.tier, b.id, b.base_hp, maxed * d
+                );
+            }
         }
     }
 

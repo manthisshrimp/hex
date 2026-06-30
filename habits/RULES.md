@@ -298,18 +298,29 @@ host:
   advantage.
 - Victory when `hp_remaining ≤ 0` before `ends_at`.
 
-Each day, every participant's **daily completion** `p(d)` is reported to the
-host, which subtracts it from `hp_remaining`:
+Each day, every participant's **daily damage** `p(d)` is reported to the host,
+which subtracts it from `hp_remaining`. It combines **consistency** and
+**effort** so both matter:
 
-- `p(d) = done(d) / due(d)`, clamped to [0, 1].
+```
+consistency = done(d) / due(d)        (clamped to 1)
+effort      = tanh(done(d) / 5)        (concave ramp, saturates near 5)
+p(d)        = effort × consistency     ∈ [0, 1)
+```
+
 - `due(d)` = active non-inscribed habits (all habits count every day).
 - `done(d)` = habits with a completion on day `d`.
-- Days with no habits due: `p(d) = 1.0` (full credit).
+- **Rest day** (nothing due) → `p = 0`: no work, no damage. A perfect 9/10 must
+  out-damage an idle day.
+- Inconsistency is punished (the ratio gates effort): 4/10 ≈ 0.27, vs a perfect
+  5/5 ≈ 0.76.
+- Volume is rewarded but with diminishing returns: perfect 2/2 ≈ 0.38, 3/3 ≈
+  0.54, 5/5 ≈ 0.76, 10/10 ≈ 0.96 (never quite 1.0).
 
-A solo player can deal at most `duration_days × 1.0` over the whole quest, so a
-boss with `base_hp > duration_days` **cannot be soloed** and needs a party.
-Only **lesser** bosses are tuned below that line; everything tougher is balanced
-around a multi-member party (see the table).
+Because the best possible day is ≈0.96, a solo run tops out around
+`duration_days × 0.96`. Lesser bosses are tuned so a casual **3/3-per-day** solo
+finishes in time; every tougher tier survives even a maxed 10/10 solo and needs
+a party (see the table).
 
 ### Extra damage
 
@@ -339,17 +350,17 @@ Defeat grants nothing. Ended quests are visible for 30 days, then pruned.
 Reveal weight rises as difficulty falls, so players meet easy bosses first and
 the hardest only occasionally.
 
-Boss HP is **fixed** (shown ×100, matching the UI). "Min party" is the smallest
-roster that can win with *perfect* daily play (`ceil(HP / duration)`); realistic
-completion rates need more. Only lesser bosses are soloable.
+Boss HP is **fixed** (shown ×100, matching the UI). "Party @ 5/5" is the roster
+needed if everyone sustains a good 5-completion day (≈0.76 dmg each); casual
+3/3 play needs more. Only lesser bosses are soloable.
 
-| Boss | Tier | Reveal weight | Duration | Boss HP | Min party | Damage × | Reward gold |
+| Boss | Tier | Reveal weight | Duration | Boss HP | Party @ 5/5 | Damage × | Reward gold |
 |---|---|---|---|---|---|---|---|
-| Gloomfang *(starter)* | lesser | 50 | 5 days | 250 | 1 (solo) | 1.25× | 300 |
-| The Mirefen Lurker | lesser | 50 | 6 days | 300 | 1 (solo) | 1.3× | 450 |
+| Gloomfang *(starter)* | lesser | 50 | 5 days | 230 | 1 (solo) | 1.25× | 300 |
+| The Mirefen Lurker | lesser | 50 | 6 days | 270 | 1 (solo) | 1.3× | 450 |
 | The Ashwarden | greater | 22 | 7 days | 900 | 2 | 1.5× | 600 |
 | The Stormcaller | greater | 22 | 8 days | 1000 | 2 | 1.6× | 850 |
 | Dreadtide | greater | 22 | 10 days | 1400 | 2 | 1.75× | 1000 |
 | The Hollow King | ancient | 8 | 12 days | 2600 | 3 | 1.9× | 1500 |
-| The Undying Vigil | ancient | 8 | 14 days | 3500 | 3 | 2.0× | 2000 |
-| The Sundering | mythic | 2 | 18 days | 6300 | 4 | 2.5× | 3500 |
+| The Undying Vigil | ancient | 8 | 14 days | 3500 | 4 | 2.0× | 2000 |
+| The Sundering | mythic | 2 | 18 days | 6300 | 5 | 2.5× | 3500 |

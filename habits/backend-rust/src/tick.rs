@@ -687,7 +687,8 @@ mod tests {
         let out = process_tick(input);
         let contrib = out.boss_contribution.expect("contribution must be Some when boss_active");
         assert_eq!(contrib.date, "2026-04-25");
-        assert!((contrib.p - 1.0).abs() < 1e-9, "all done → p = 1.0");
+        // 1/1 perfect = tanh(1/5) × 1.0 ≈ 0.197 (effort ramp, not full credit).
+        assert!((contrib.p - 0.1974).abs() < 1e-3, "1/1 → p ≈ 0.197, got {}", contrib.p);
         assert_eq!(out.gear_wear, 8);
     }
 
