@@ -128,7 +128,7 @@ export default function BossPage({ refreshCharacter }) {
   return (
     <>
       {active && (() => {
-        const { boss, quest, myContribution, myContributedToday, gear, leaderboard } = active;
+        const { boss, quest, myContribution, myContributedToday, gear, leaderboard, armor, damage, effMultiplier, damageBonus } = active;
         return (
           <>
             <SectionHeader>ACTIVE QUEST</SectionHeader>
@@ -169,6 +169,22 @@ export default function BossPage({ refreshCharacter }) {
                   ))}
                 </div>
               )}
+
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '130px', background: '#0d1a22', border: '1px solid #204a5a', borderRadius: '4px', padding: '7px 10px' }}>
+                  <div style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: '2px' }}>🛡 ARMOUR {armor ?? 0}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#3a90b0' }}>
+                    boss ×{(effMultiplier ?? boss.damageMultiplier).toFixed(2)}
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: '0.66rem' }}> (base ×{boss.damageMultiplier})</span>
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: '130px', background: '#1a0d0d', border: '1px solid #5a2020', borderRadius: '4px', padding: '7px 10px' }}>
+                  <div style={{ fontSize: '0.62rem', color: 'var(--color-text-muted)', letterSpacing: '0.08em', marginBottom: '2px' }}>⚔ DAMAGE {damage ?? 0}</div>
+                  <div style={{ fontSize: '0.78rem', color: '#c0703a' }}>
+                    +{Math.round(((damageBonus ?? 1) - 1) * 100)}% dealt
+                  </div>
+                </div>
+              </div>
 
               {gear?.length > 0 && (
                 <div style={{ marginBottom: '12px' }}>

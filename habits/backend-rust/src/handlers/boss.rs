@@ -447,6 +447,17 @@ pub async fn get_boss(
                 })
             }).collect();
 
+            // Gear stat totals and their boss effects, so the player can see why
+            // gear matters (armor mitigates the multiplier, damage boosts dealt).
+            let (gear_damage, gear_armor) = eq.equipped.values().fold((0u32, 0u32), |(d, a), id| {
+                state.catalogue.iter().find(|i| &i.id == id)
+                    .map(|i| (d + i.damage, a + i.armor))
+                    .unwrap_or((d, a))
+            });
+            let base_mult = boss_def.as_ref().map(|b| b.damage_multiplier).unwrap_or(1.0);
+            let eff_mult = game::boss_effective_multiplier(base_mult, gear_armor);
+            let damage_bonus = game::boss_damage_gear_bonus(gear_damage);
+
             // Leaderboard from cached state — resolve URLs to party member names
             let leaderboard: Vec<Value> = quest.map(|q| {
                 let mut entries: Vec<_> = q.contributions.iter()
@@ -475,6 +486,10 @@ pub async fn get_boss(
                 "myContribution": my_contribution,
                 "myContributedToday": my_contributed_today,
                 "gear": gear,
+                "armor": gear_armor,
+                "damage": gear_damage,
+                "effMultiplier": eff_mult,
+                "damageBonus": damage_bonus,
                 "leaderboard": leaderboard,
             }))
         } else {
