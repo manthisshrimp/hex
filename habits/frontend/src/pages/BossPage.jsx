@@ -4,6 +4,11 @@ import { getBoss, launchBoss, joinBoss, abandonBoss } from '../api';
 
 const TIER_COLOR = { lesser: '#80b040', greater: '#4080c0', ancient: '#c04080', mythic: '#e0a020' };
 
+// Boss HP and contributions are stored in p-units (0–1 per player-day). Scale
+// up for display so the numbers read like a real health bar.
+const HP_SCALE = 100;
+const dmg = (p) => Math.round(p * HP_SCALE);
+
 function HpBar({ remaining, pool }) {
   const pct = pool > 0 ? Math.min(100, (remaining / pool) * 100) : 0;
   const felledPct = (100 - pct).toFixed(1);
@@ -11,7 +16,7 @@ function HpBar({ remaining, pool }) {
     <div style={{ marginBottom: '10px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
         <span>{felledPct}% felled</span>
-        <span>{remaining.toFixed(1)} / {pool.toFixed(1)} HP</span>
+        <span>{dmg(Math.max(0, remaining))} / {dmg(pool)} HP</span>
       </div>
       <div style={{ height: '8px', background: '#3a1010', borderRadius: '4px' }}>
         <div style={{ height: '100%', background: '#c04040', borderRadius: '4px', width: `${100 - pct}%` }} />
@@ -126,7 +131,7 @@ export default function BossPage({ refreshCharacter }) {
                   {myContributedToday ? '✓ Contributed today' : 'Not yet advanced today'}
                 </span>
                 <span style={{ color: 'var(--color-text-muted)' }}>
-                  My p-score: <span style={{ color: 'var(--color-text)' }}>{myContribution.toFixed(2)}</span>
+                  Damage dealt: <span style={{ color: 'var(--color-text)' }}>{dmg(myContribution)}</span>
                 </span>
               </div>
 
@@ -141,7 +146,7 @@ export default function BossPage({ refreshCharacter }) {
                       borderBottom: '1px solid rgba(255,255,255,0.04)',
                     }}>
                       <span>{entry.name}{entry.isMe && <span style={{ color: '#4caf7d', marginLeft: '6px', fontSize: '0.65rem' }}>(you)</span>}</span>
-                      <span>{entry.total.toFixed(2)}</span>
+                      <span>{dmg(entry.total)}</span>
                     </div>
                   ))}
                 </div>
