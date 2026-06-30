@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fmtNum } from '../fmt';
 import SectionHeader from '../components/SectionHeader';
 import {
-  getShop, buyItem, getEquipment, equipItem, unequipSlot, patchCharacter,
+  getShop, buyItem, getEquipment, equipItem, unequipSlot, patchCharacter, getBoss,
 } from '../api';
 import { TIER_COLOR, SLOT_LABEL, ALL_SLOTS } from '../constants';
 
@@ -46,7 +46,7 @@ function ItemCard({ item, actionLabel, onAction, actionDisabled, dimmed }) {
   );
 }
 
-function SlotRow({ slotKey, item, onUnequip }) {
+function SlotRow({ slotKey, item, onUnequip, locked }) {
   const empty = !item;
   return (
     <div
@@ -65,7 +65,7 @@ function SlotRow({ slotKey, item, onUnequip }) {
           </span>
           <span style={{ fontSize: '0.72rem', color: '#e05555', marginRight: '4px' }}>{item.damage > 0 ? `⚔${item.damage}` : ''}</span>
           <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginRight: '8px' }}>{item.armor > 0 ? `🛡${item.armor}` : ''}</span>
-          <button className="bevel-btn" style={{ padding: '4px 8px', fontSize: '0.7rem' }} onClick={() => onUnequip(slotKey)}>
+          <button className="bevel-btn" style={{ padding: '4px 8px', fontSize: '0.7rem' }} onClick={() => onUnequip(slotKey)} disabled={locked}>
             Remove
           </button>
         </>
@@ -110,12 +110,21 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
   const [buying, setBuying] = useState(null);
   const [equipping, setEquipping] = useState(null);
   const [unequipping, setUnequipping] = useState(null);
+  const [gearLocked, setGearLocked] = useState(false);
 
   // Character name
   const [nameInput, setNameInput] = useState(characterName || '');
   const [nameSaving, setNameSaving] = useState(false);
 
   useEffect(() => { setNameInput(characterName || ''); }, [characterName]);
+
+  // Gear is locked while a boss quest is active.
+  useEffect(() => {
+    getBoss()
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setGearLocked(!!d?.active))
+      .catch(() => {});
+  }, []);
 
   const loadEquipment = useCallback(async () => {
     setEqLoading(true);
@@ -280,9 +289,14 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
           {eqLoading ? <div className="loading-state">Loading armoury...</div> :
           eqError ? <div className="empty-state">Failed to load: {eqError}</div> : (
             <>
+              {gearLocked && (
+                <div style={{ fontSize: '0.7rem', color: '#c08040', fontStyle: 'italic', marginBottom: '10px', border: '1px solid #5a3a10', background: '#1a1008', padding: '7px 10px', borderRadius: '4px' }}>
+                  ⚔ Gear is locked while a boss quest is active.
+                </div>
+              )}
               <SectionHeader>EQUIPPED GEAR</SectionHeader>
               {ALL_SLOTS.map(slot => (
-                <SlotRow key={slot} slotKey={slot} item={equippedMap[slot] || null} onUnequip={handleUnequip} />
+                <SlotRow key={slot} slotKey={slot} item={equippedMap[slot] || null} onUnequip={handleUnequip} locked={gearLocked} />
               ))}
 
               <div style={{ marginTop: '20px' }}><SectionHeader>INVENTORY</SectionHeader></div>
@@ -294,7 +308,7 @@ export default function CharacterPage({ hp, gold, damage, armor, renown, charact
                     key={item.id}
                     item={item}
                     actionLabel="Equip"
-                    actionDisabled={equipping === item.id}
+                    actionDisabled={equipping === item.id || gearLocked}
                     onAction={() => handleEquip(item.id)}
                   />
                 ))

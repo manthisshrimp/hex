@@ -63,6 +63,33 @@ function shortenUrl(url) {
   return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
 }
 
+// Difficulty hint: duration · scaled HP · damage multiplier · soloable?
+function DifficultyLine({ boss }) {
+  return (
+    <div style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)', marginBottom: '6px' }}>
+      {boss.durationDays}d · {dmg(boss.baseHp)} HP · ×{boss.damageMultiplier} dmg ·{' '}
+      <span style={{ color: boss.soloable ? '#4caf7d' : '#c08040' }}>
+        {boss.soloable ? 'soloable' : 'needs a party'}
+      </span>
+    </div>
+  );
+}
+
+// Reward breakdown: gold + chance at the unique item + chance at a heal.
+function RewardLine({ boss }) {
+  return (
+    <div style={{ fontSize: '0.7rem', display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '8px' }}>
+      <span style={{ color: 'var(--color-gold)' }}>⚜ {boss.rewardGold}</span>
+      {boss.rewardItemName && (
+        <span style={{ color: '#c08040' }}>🗡 {boss.rewardItemName} ({Math.round(boss.rewardItemChance * 100)}%)</span>
+      )}
+      {boss.rewardHeal > 0 && (
+        <span style={{ color: '#4caf7d' }}>♥ {boss.rewardHeal} ({Math.round(boss.rewardHealChance * 100)}%)</span>
+      )}
+    </div>
+  );
+}
+
 export default function BossPage({ refreshCharacter }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -131,22 +158,20 @@ export default function BossPage({ refreshCharacter }) {
         const { boss, quest, myContribution, myContributedToday, gear, leaderboard, armor, damage, effMultiplier, damageBonus } = active;
         return (
           <>
-            <SectionHeader>ACTIVE QUEST</SectionHeader>
+            <SectionHeader>BOSS QUEST</SectionHeader>
             <div className="stone-panel" style={{ padding: '14px', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '1rem', fontWeight: 700 }}>{boss.name}</span>
                 <TierBadge tier={boss.tier} />
-                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                  ⚜ {boss.rewardGold} reward
-                </span>
               </div>
+              <RewardLine boss={boss} />
 
               <HpBar remaining={quest.hpRemaining} pool={quest.hpPool} />
               <TimeBar endsAt={quest.endsAt} durationDays={quest.durationDays} />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '10px' }}>
                 <span style={{ color: myContributedToday ? '#4caf7d' : 'var(--color-text-muted)', fontStyle: myContributedToday ? 'normal' : 'italic' }}>
-                  {myContributedToday ? '✓ Contributed today' : 'Not yet advanced today'}
+                  {myContributedToday ? '✓ Advanced today' : 'Not advanced today'}
                 </span>
                 <span style={{ color: 'var(--color-text-muted)' }}>
                   Damage dealt: <span style={{ color: 'var(--color-text)' }}>{dmg(myContribution)}</span>
@@ -185,33 +210,26 @@ export default function BossPage({ refreshCharacter }) {
                 </div>
               </div>
 
-              {gear?.length > 0 && (
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em', marginBottom: '6px' }}>GEAR</div>
-                  {gear.map((g, i) => {
-                    const pct = g.max > 0 ? (g.durability / g.max) * 100 : 0;
-                    const barColor = pct < 25 ? '#c04040' : pct < 60 ? '#c08040' : '#4a7c59';
-                    return (
-                      <div key={i} style={{ marginBottom: '5px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '2px' }}>
-                          <span>{g.name}</span>
-                          <span>{g.durability}/{g.max}</span>
-                        </div>
-                        <div style={{ height: '4px', background: '#3a1010', borderRadius: '2px' }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '2px' }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {gear?.length > 0 && (() => {
+                const lowest = Math.min(...gear.map(g => (g.max > 0 ? (g.durability / g.max) * 100 : 100)));
+                const lowColor = lowest < 25 ? '#c04040' : lowest < 60 ? '#c08040' : '#4a7c59';
+                return (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '10px' }}>
+                    🛡 {gear.length} piece{gear.length === 1 ? '' : 's'} worn · lowest durability{' '}
+                    <span style={{ color: lowColor }}>{Math.round(lowest)}%</span>
+                  </div>
+                );
+              })()}
+
+              <div style={{ fontSize: '0.66rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: '10px' }}>
+                ⚔ Gear is locked for the duration of the quest.
+              </div>
 
               <button
-                className="bevel-btn"
-                style={{ color: '#c04040', borderColor: '#6a2020', marginTop: '4px' }}
                 onClick={handleAbandon}
+                style={{ background: 'none', border: 'none', color: '#a04040', fontSize: '0.7rem', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
               >
-                ABANDON QUEST
+                Abandon quest
               </button>
             </div>
           </>
@@ -223,18 +241,21 @@ export default function BossPage({ refreshCharacter }) {
           <SectionHeader>INVITATIONS</SectionHeader>
           {invitations.map((inv, i) => (
             <div key={i} className="stone-panel" style={{ padding: '14px', marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{shortenUrl(inv.hostUrl)}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '0.85rem' }}>{inv.boss.name}</span>
                 <TierBadge tier={inv.boss.tier} />
+                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                  {inv.hostName || shortenUrl(inv.hostUrl)}'s party
+                </span>
               </div>
+              {inv.boss && <DifficultyLine boss={inv.boss} />}
               {inv.quest && <HpBar remaining={inv.quest.hpRemaining} pool={inv.quest.hpPool} />}
               <button
                 className="bevel-btn"
                 onClick={() => handleJoin(inv.hostUrl)}
                 disabled={joining === inv.hostUrl || !!active}
               >
-                {joining === inv.hostUrl ? 'Joining...' : 'JOIN'}
+                {joining === inv.hostUrl ? 'Joining...' : active ? 'Already in a quest' : 'JOIN'}
               </button>
             </div>
           ))}
@@ -249,8 +270,9 @@ export default function BossPage({ refreshCharacter }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '0.9rem', fontWeight: 600 }}>{boss.name}</span>
                 <TierBadge tier={boss.tier} />
-                <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-gold)' }}>⚜ {boss.rewardGold}</span>
               </div>
+              <DifficultyLine boss={boss} />
+              <RewardLine boss={boss} />
               {(boss.revealText || boss.lore) && (
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: '8px' }}>
                   {boss.revealText || boss.lore}
@@ -261,7 +283,7 @@ export default function BossPage({ refreshCharacter }) {
                 onClick={() => handleLaunch(boss.id)}
                 disabled={launching === boss.id || !!active}
               >
-                {launching === boss.id ? 'Launching...' : 'LAUNCH'}
+                {launching === boss.id ? 'Launching...' : active ? 'Already in a quest' : 'LAUNCH'}
               </button>
             </div>
           ))}
@@ -280,7 +302,9 @@ export default function BossPage({ refreshCharacter }) {
                   fontSize: '0.68rem',
                   color: entry.outcome === 'victory' ? '#4caf7d' : '#c04040',
                 }}>
-                  {entry.outcome === 'victory' ? '✓ Victory' : '✕ Abandoned'}
+                  {entry.outcome === 'victory' ? '✓ Victory'
+                    : entry.outcome === 'defeat' ? '✕ Defeat'
+                    : '⚐ Abandoned'}
                 </span>
                 {entry.brokenGear?.length > 0 && (
                   <span style={{ marginLeft: '8px', fontSize: '0.68rem', color: '#c04040' }}>

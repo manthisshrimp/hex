@@ -407,9 +407,15 @@ pub async fn get_boss(
                     if !already {
                         let boss_def = boss_cat::find(&hq.boss_id);
                         let participants_count = hq.contributions.len();
+                        let host_name = member.cached_public.as_ref()
+                            .and_then(|pc| pc.name.clone())
+                            .unwrap_or_else(|| member.url.trim_end_matches('/')
+                                .replace("https://", "").replace("http://", ""));
                         invitations.push(json!({
                             "hostUrl": member.url,
-                            "boss": boss_def.as_ref().map(boss_def_to_json),
+                            "hostName": host_name,
+                            "boss": boss_def.as_ref().map(|d| boss_def_to_json(d, &state.catalogue)),
+                            "quest": { "hpRemaining": hq.hp_remaining, "hpPool": hq.hp_pool },
                             "participants": participants_count,
                         }));
                     }
@@ -481,7 +487,7 @@ pub async fn get_boss(
             }).unwrap_or_default();
 
             Some(json!({
-                "boss": boss_def.as_ref().map(boss_def_to_json),
+                "boss": boss_def.as_ref().map(|d| boss_def_to_json(d, &state.catalogue)),
                 "quest": quest,
                 "myContribution": my_contribution,
                 "myContributedToday": my_contributed_today,
@@ -511,7 +517,7 @@ pub async fn get_boss(
                     .unwrap_or_else(|| id.clone())
             }).collect();
             vec![json!({
-                "boss": boss_def.as_ref().map(boss_def_to_json),
+                "boss": boss_def.as_ref().map(|d| boss_def_to_json(d, &state.catalogue)),
                 "outcome": p.outcome,
                 "brokenGear": broken_names,
                 "resolvedAt": p.resolved_at,
@@ -522,7 +528,7 @@ pub async fn get_boss(
     // ── 6. Revealed bosses ────────────────────────────────────────────────────
     let revealed: Vec<Value> = boss.revealed.iter().filter_map(|r| {
         boss_cat::find(&r.boss_id).map(|def| {
-            let mut v = boss_def_to_json(&def);
+            let mut v = boss_def_to_json(&def, &state.catalogue);
             if let Value::Object(ref mut m) = v {
                 m.insert("revealedAt".to_string(), Value::String(r.revealed_at.clone()));
             }
@@ -591,7 +597,10 @@ async fn grant_victory_reward(state: &AppState, boss_def: &BossDef) -> Result<()
 
 // ── JSON helper ───────────────────────────────────────────────────────────────
 
-fn boss_def_to_json(def: &BossDef) -> Value {
+fn boss_def_to_json(def: &BossDef, catalogue: &[crate::models::Item]) -> Value {
+    let reward_item_name = def.reward_item
+        .and_then(|id| catalogue.iter().find(|i| i.id == id))
+        .map(|i| i.name.clone());
     json!({
         "id": def.id,
         "name": def.name,
@@ -602,8 +611,12 @@ fn boss_def_to_json(def: &BossDef) -> Value {
         "baseHp": def.base_hp,
         "threshold": def.threshold,
         "damageMultiplier": def.damage_multiplier,
+        // Solo damage tops out at duration × ~0.96; only lesser bosses sit below
+        // their HP, so this mirrors the difficulty-gating invariant.
+        "soloable": def.tier == "lesser",
         "rewardGold": def.reward_gold,
         "rewardItem": def.reward_item,
+        "rewardItemName": reward_item_name,
         "rewardItemChance": def.reward_item_chance,
         "rewardHeal": def.reward_heal,
         "rewardHealChance": def.reward_heal_chance,
