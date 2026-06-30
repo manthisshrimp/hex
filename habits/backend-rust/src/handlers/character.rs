@@ -30,6 +30,9 @@ fn boss_tick_params(
     day: NaiveDate,
 ) -> (bool, f64, u32) {
     let Some(p) = participating else { return (false, 1.0, 0); };
+    // A resolved quest (won/lost/abandoned) is no longer active even within its
+    // original date window — no more boss damage or gear wear.
+    if p.outcome.is_some() { return (false, 1.0, 0); }
     let started = game::parse_iso_date(&p.started_at).unwrap_or(day);
     let ends   = game::parse_iso_date(&p.ends_at).unwrap_or(day);
     if day < started || day >= ends {

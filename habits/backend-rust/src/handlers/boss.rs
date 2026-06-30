@@ -145,8 +145,9 @@ pub async fn post_launch(
 
     let mut boss = state.store.boss.get();
 
-    if boss.participating.is_some() {
-        return Err(AppError::Validation("Already participating in a quest".to_string()));
+    // Only an unresolved (ongoing) quest blocks; a finished one stays for RECENT.
+    if boss.participating.as_ref().map(|p| p.outcome.is_none()).unwrap_or(false) {
+        return Err(AppError::Validation("Already in an active quest".to_string()));
     }
 
     // Boss must be revealed
@@ -236,8 +237,9 @@ pub async fn post_join(
 
     let mut boss = state.store.boss.get();
 
-    if boss.participating.is_some() {
-        return Err(AppError::Validation("Already participating in a quest".to_string()));
+    // Only an unresolved (ongoing) quest blocks; a finished one stays for RECENT.
+    if boss.participating.as_ref().map(|p| p.outcome.is_none()).unwrap_or(false) {
+        return Err(AppError::Validation("Already in an active quest".to_string()));
     }
 
     let host_url = body.host_url.trim_end_matches('/').to_string();
@@ -296,15 +298,17 @@ pub async fn post_abandon(
 
     let mut boss = state.store.boss.get();
 
-    if boss.participating.is_none() {
-        return Ok(Json(json!({ "ok": true })));
+    // Resolve the participation as abandoned but KEEP it, so it shows in RECENT.
+    // Outcome guards stop it counting as active (no boss damage/wear, doesn't
+    // block a new launch/join). The host's hosted quest is intentionally left
+    // active so the rest of the party can still finish it.
+    match boss.participating.as_mut() {
+        Some(p) if p.outcome.is_none() => {
+            p.outcome = Some("abandoned".to_string());
+            p.resolved_at = Some(game::today_str());
+        }
+        _ => return Ok(Json(json!({ "ok": true }))),
     }
-
-    if let Some(ref mut p) = boss.participating {
-        p.outcome = Some("abandoned".to_string());
-        p.resolved_at = Some(game::today_str());
-    }
-    boss.participating = None;
 
     state.store.boss.save(boss).await?;
     Ok(Json(json!({ "ok": true })))
