@@ -312,6 +312,18 @@ pub async fn get_boss(
     let today_str = game::today_str();
     let client = make_client()?;
 
+    // ── 0. Seed the starter boss once, so a new account has something to fight ─
+    if !boss.initialized {
+        boss.initialized = true;
+        if !boss.revealed.iter().any(|r| r.boss_id == boss_cat::STARTER_BOSS) {
+            boss.revealed.push(crate::models::RevealedBoss {
+                boss_id: boss_cat::STARTER_BOSS.to_string(),
+                revealed_at: today_str.clone(),
+            });
+        }
+        let _ = state.store.boss.save(boss.clone()).await;
+    }
+
     // ── 1. Flush outbox ───────────────────────────────────────────────────────
     if let Some(ref mut p) = boss.participating {
         if p.outcome.is_none() && !p.outbox.is_empty() {
@@ -545,6 +557,7 @@ fn boss_def_to_json(def: &BossDef) -> Value {
         "name": def.name,
         "lore": def.lore,
         "tier": def.tier,
+        "revealText": def.reveal_text,
         "durationDays": def.duration_days,
         "threshold": def.threshold,
         "damageMultiplier": def.damage_multiplier,

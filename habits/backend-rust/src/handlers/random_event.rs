@@ -10,6 +10,36 @@ use crate::models::{ActiveRandomEvent, ResolvedRandomEvent, HealthEvent, GoldEve
 use crate::random_events_catalogue::{self as cat, EventKind, StatType};
 use super::AppState;
 
+/// Reveal a boss when an event with `reveals_boss` resolves. The weighted
+/// sentinel picks a difficulty-weighted boss not already revealed, hosted, or
+/// in an active quest; a concrete id reveals that specific boss. Best-effort.
+async fn reveal_from_event(state: &AppState, reveals: &str, today_str: &str) {
+    let mut boss_state = state.store.boss.get();
+
+    let chosen_id: Option<String> = if reveals == cat::REVEAL_WEIGHTED {
+        let mut exclude: Vec<String> =
+            boss_state.revealed.iter().map(|r| r.boss_id.clone()).collect();
+        if let Some(p) = &boss_state.participating {
+            if p.outcome.is_none() { exclude.push(p.boss_id.clone()); }
+        }
+        if let Some(h) = &boss_state.hosted { exclude.push(h.boss_id.clone()); }
+        let ex: Vec<&str> = exclude.iter().map(|s| s.as_str()).collect();
+        crate::bosses_catalogue::pick_weighted_unrevealed(&ex).map(|b| b.id.to_string())
+    } else {
+        Some(reveals.to_string())
+    };
+
+    if let Some(id) = chosen_id {
+        if !boss_state.revealed.iter().any(|r| r.boss_id == id) {
+            boss_state.revealed.push(crate::models::RevealedBoss {
+                boss_id: id,
+                revealed_at: today_str.to_string(),
+            });
+            let _ = state.store.boss.save(boss_state).await;
+        }
+    }
+}
+
 // ── Response types ────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -248,15 +278,8 @@ pub async fn resolve_random_event(
     ev_state.next_event_at = Some(cat::next_event_date(game::today()));
     state.store.random_events.save(ev_state).await?;
 
-    if let Some(boss_id) = def.reveals_boss {
-        let mut boss_state = state.store.boss.get();
-        if !boss_state.revealed.iter().any(|r| r.boss_id == boss_id) {
-            boss_state.revealed.push(crate::models::RevealedBoss {
-                boss_id: boss_id.to_string(),
-                revealed_at: today_str.clone(),
-            });
-            let _ = state.store.boss.save(boss_state).await;
-        }
+    if let Some(reveals) = def.reveals_boss {
+        reveal_from_event(&state, reveals, &today_str).await;
     }
 
     Ok(Json(ResolveResponse {
@@ -318,15 +341,8 @@ pub async fn choose_random_event(
     ev_state.next_event_at = Some(cat::next_event_date(game::today()));
     state.store.random_events.save(ev_state).await?;
 
-    if let Some(boss_id) = def.reveals_boss {
-        let mut boss_state = state.store.boss.get();
-        if !boss_state.revealed.iter().any(|r| r.boss_id == boss_id) {
-            boss_state.revealed.push(crate::models::RevealedBoss {
-                boss_id: boss_id.to_string(),
-                revealed_at: today_str.clone(),
-            });
-            let _ = state.store.boss.save(boss_state).await;
-        }
+    if let Some(reveals) = def.reveals_boss {
+        reveal_from_event(&state, reveals, &today_str).await;
     }
 
     Ok(Json(ResolveResponse {

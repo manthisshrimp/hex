@@ -1,5 +1,6 @@
-/// Static catalogue of all 20 random events (8 passive, 12 choice).
-/// Passive events auto-resolve; choice events require the player to pick an option.
+/// Static catalogue of random events. Passive events auto-resolve; choice
+/// events require the player to pick an option. One passive event (`a_threat_stirs`)
+/// reveals a difficulty-weighted boss instead of applying a stat outcome.
 
 #[derive(Clone)]
 pub struct OutcomeDef {
@@ -461,54 +462,28 @@ pub fn catalogue() -> Vec<EventDef> {
             reveals_boss: None,
         },
         EventDef {
-            id: "scouting_report",
-            title: "A Ranger's Warning",
-            text: "A weathered ranger staggers into camp, clutching a report. \"I've tracked it for days,\" she rasps. \"Something ancient stirs in the dark. Gather your allies before it comes to you.\"",
+            id: "a_threat_stirs",
+            title: "A Threat Stirs",
+            text: "A weathered ranger staggers into camp, clutching a report. \"I've tracked it for days,\" she rasps. \"Something stirs in the dark. Gather your allies before it comes to you.\"",
             kind: EventKind::Passive {
                 stat: StatType::None,
                 tiers: vec![
-                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The warning unsettles you, but the knowledge is power.", hp_delta: 0.0, gold_delta: 0.0 } },
+                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The warning unsettles you, but knowledge is power. A new foe has been marked on your map.", hp_delta: 0.0, gold_delta: 0.0 } },
                 ],
             },
-            reveals_boss: Some("gloomfang"),
-        },
-        EventDef {
-            id: "scorched_messenger",
-            title: "Ash on the Wind",
-            text: "A messenger collapses at the gate, robes seared black. \"The Ashwarden has woken,\" he breathes. \"Its embers march on every keep in the vale. We must answer fire with fellowship.\"",
-            kind: EventKind::Passive {
-                stat: StatType::None,
-                tiers: vec![
-                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The smell of cinders lingers. A greater threat now stalks the realm.", hp_delta: 0.0, gold_delta: 0.0 } },
-                ],
-            },
-            reveals_boss: Some("ashwarden"),
-        },
-        EventDef {
-            id: "drowned_bell",
-            title: "The Drowned Bell",
-            text: "Far out on the black water a bell tolls where no bell should be. Sailors speak of the Dreadtide — a thing that rises with the dark moon and drags the coast beneath it. The tolling is a summons.",
-            kind: EventKind::Passive {
-                stat: StatType::None,
-                tiers: vec![
-                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The tide pulls at your resolve. Rally your allies before it crests.", hp_delta: 0.0, gold_delta: 0.0 } },
-                ],
-            },
-            reveals_boss: Some("dreadtide"),
-        },
-        EventDef {
-            id: "the_silent_vigil",
-            title: "Where the Lanterns Failed",
-            text: "You find the watchtower cold, its lanterns long dead, its sentinels standing yet unbreathing. They keep an endless vigil for a foe that never tires. The Undying Vigil has marked this land — and only a host united may end it.",
-            kind: EventKind::Passive {
-                stat: StatType::None,
-                tiers: vec![
-                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "An ancient dread settles over you. This is no foe to face alone.", hp_delta: 0.0, gold_delta: 0.0 } },
-                ],
-            },
-            reveals_boss: Some("the_undying_vigil"),
+            reveals_boss: Some(REVEAL_WEIGHTED),
         },
     ]
+}
+
+/// Sentinel `reveals_boss` value: reveal a difficulty-weighted random boss
+/// (rather than a specific one) when this event resolves.
+pub const REVEAL_WEIGHTED: &str = "__weighted__";
+
+/// Selection weight for an event. The reveal event is weighted up so boss
+/// sightings happen on a useful cadence; everything else is uniform.
+fn event_weight(e: &EventDef) -> u32 {
+    if e.reveals_boss.is_some() { 80 } else { 10 }
 }
 
 /// Pick a random event id, avoiding the last `exclude_recent` events.
@@ -520,8 +495,16 @@ pub fn pick_event_id(history_event_ids: &[String]) -> String {
         .rev().take(3).map(|s| s.as_str()).collect();
     let available: Vec<&EventDef> = cat.iter().filter(|e| !recent.contains(e.id)).collect();
     let pool: Vec<&EventDef> = if available.is_empty() { cat.iter().collect() } else { available };
-    let idx = rng.gen_range(0..pool.len());
-    pool[idx].id.to_string()
+    let total: u32 = pool.iter().map(|e| event_weight(e)).sum();
+    let mut roll = rng.gen_range(0..total);
+    for e in &pool {
+        let w = event_weight(e);
+        if roll < w {
+            return e.id.to_string();
+        }
+        roll -= w;
+    }
+    pool[0].id.to_string()
 }
 
 /// Next event date = today + 3–5 days.
@@ -566,38 +549,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn scouting_report_reveals_gloomfang() {
+    fn weighted_reveal_event_exists() {
         let cat = catalogue();
-        let event = cat.iter().find(|e| e.id == "scouting_report")
-            .expect("scouting_report must be in catalogue");
-        assert_eq!(event.reveals_boss, Some("gloomfang"));
+        let count = cat.iter().filter(|e| e.reveals_boss == Some(REVEAL_WEIGHTED)).count();
+        assert_eq!(count, 1, "exactly one weighted reveal event expected");
     }
 
     #[test]
-    fn every_boss_has_a_reveal_event() {
+    fn reveal_event_is_weighted_higher() {
         let cat = catalogue();
-        let revealed: std::collections::HashSet<&str> =
-            cat.iter().filter_map(|e| e.reveals_boss).collect();
-        for boss in crate::bosses_catalogue::catalogue() {
-            assert!(
-                revealed.contains(boss.id),
-                "boss {} has no reveal event — unreachable in-game",
-                boss.id
-            );
-        }
+        let reveal = cat.iter().find(|e| e.reveals_boss.is_some()).unwrap();
+        let normal = cat.iter().find(|e| e.reveals_boss.is_none()).unwrap();
+        assert!(event_weight(reveal) > event_weight(normal));
     }
 
     #[test]
-    fn reveal_targets_exist_in_boss_catalogue() {
+    fn pick_event_id_returns_valid_id() {
         let cat = catalogue();
-        for ev in cat.iter() {
-            if let Some(id) = ev.reveals_boss {
-                assert!(
-                    crate::bosses_catalogue::find(id).is_some(),
-                    "event {} reveals unknown boss {}",
-                    ev.id, id
-                );
-            }
-        }
+        let id = pick_event_id(&[]);
+        assert!(cat.iter().any(|e| e.id == id), "picked id {} not in catalogue", id);
     }
 }

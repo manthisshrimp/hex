@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
 import { getBoss, launchBoss, joinBoss, abandonBoss } from '../api';
 
-const TIER_COLOR = { lesser: '#80b040', greater: '#4080c0', ancient: '#c04080' };
+const TIER_COLOR = { lesser: '#80b040', greater: '#4080c0', ancient: '#c04080', mythic: '#e0a020' };
 
 function HpBar({ remaining, pool }) {
   const pct = pool > 0 ? Math.min(100, (remaining / pool) * 100) : 0;
@@ -246,9 +246,9 @@ export default function BossPage({ refreshCharacter }) {
                 <TierBadge tier={boss.tier} />
                 <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--color-gold)' }}>⚜ {boss.rewardGold}</span>
               </div>
-              {boss.description && (
+              {(boss.revealText || boss.lore) && (
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontStyle: 'italic', marginBottom: '8px' }}>
-                  {boss.description}
+                  {boss.revealText || boss.lore}
                 </div>
               )}
               <button

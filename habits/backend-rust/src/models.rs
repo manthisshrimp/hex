@@ -400,6 +400,10 @@ pub struct BossState {
     pub participating: Option<Participation>,
     #[serde(default)]
     pub revealed: Vec<RevealedBoss>,
+    /// Set once the starter boss has been seeded into `revealed`, so it is
+    /// only ever auto-added on first access.
+    #[serde(default)]
+    pub initialized: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

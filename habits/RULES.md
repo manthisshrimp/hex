@@ -268,8 +268,18 @@ habit loop.
 
 ### Discovery
 
-A special random encounter — *A Ranger's Warning* — reveals a boss. Revealed
-bosses appear in the Boss tab and can be launched.
+A new account starts with the **starter boss** (Gloomfang) already revealed,
+so there is always something to fight.
+
+Beyond that, a special random encounter — *A Threat Stirs* — reveals one more
+boss each time it resolves. Which boss is **difficulty-weighted**: lesser
+bosses surface often, mythic ones rarely (weights 50 / 22 / 8 / 2 for
+lesser / greater / ancient / mythic). A boss you have already revealed,
+already host, or are currently fighting is skipped, so reveals always bring
+something new.
+
+Revealed bosses are **collected** in the Boss tab and persist there until you
+choose to launch them — there is no expiry on a revealed boss.
 
 ### Launching & joining
 
@@ -318,9 +328,16 @@ Defeat grants nothing. Ended quests are visible for 30 days, then pruned.
 
 ### Bosses
 
-| Boss | Tier | Duration | Avg % needed | Damage ×  |
-|---|---|---|---|---|
-| Gloomfang | lesser | 5 days | 50% | 1.25× |
-| The Ashwarden | greater | 7 days | 65% | 1.5× |
-| Dreadtide | greater | 10 days | 75% | 1.75× |
-| The Undying Vigil | ancient | 14 days | 90% | 2.0× |
+Reveal weight rises as difficulty falls, so players meet easy bosses first and
+the hardest only occasionally.
+
+| Boss | Tier | Reveal weight | Duration | Avg % needed | Damage × | Reward gold |
+|---|---|---|---|---|---|---|
+| Gloomfang *(starter)* | lesser | 50 | 5 days | 50% | 1.25× | 300 |
+| The Mirefen Lurker | lesser | 50 | 6 days | 55% | 1.3× | 450 |
+| The Ashwarden | greater | 22 | 7 days | 65% | 1.5× | 600 |
+| The Stormcaller | greater | 22 | 8 days | 70% | 1.6× | 850 |
+| Dreadtide | greater | 22 | 10 days | 75% | 1.75× | 1000 |
+| The Hollow King | ancient | 8 | 12 days | 82% | 1.9× | 1500 |
+| The Undying Vigil | ancient | 8 | 14 days | 90% | 2.0× | 2000 |
+| The Sundering | mythic | 2 | 18 days | 95% | 2.5× | 3500 |

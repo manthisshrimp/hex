@@ -1,9 +1,17 @@
+/// The boss reachable from a brand-new account before any reveal event fires.
+pub const STARTER_BOSS: &str = "gloomfang";
+
 #[derive(Debug, Clone)]
 pub struct BossDef {
     pub id: &'static str,
     pub name: &'static str,
     pub lore: &'static str,
     pub tier: &'static str,
+    /// Relative likelihood of being revealed. Higher = more common.
+    /// 0 means never revealed at random (starter / event-only).
+    pub reveal_weight: u32,
+    /// Flavour shown the moment this boss is sighted/revealed.
+    pub reveal_text: &'static str,
     pub duration_days: u32,
     pub threshold: f64,
     pub damage_multiplier: f64,
@@ -16,11 +24,14 @@ pub struct BossDef {
 
 pub fn catalogue() -> Vec<BossDef> {
     vec![
+        // ── LESSER (weight 50) ────────────────────────────────────────────────
         BossDef {
             id: "gloomfang",
             name: "Gloomfang",
             lore: "A slavering wolf-beast that haunts the forest edge, feeding on broken promises.",
             tier: "lesser",
+            reveal_weight: 50,
+            reveal_text: "Paw-prints the size of shields circle the camp. Something has been watching, and it is hungry.",
             duration_days: 5,
             threshold: 0.50,
             damage_multiplier: 1.25,
@@ -31,10 +42,29 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal_chance: 0.6,
         },
         BossDef {
+            id: "mirefen_lurker",
+            name: "The Mirefen Lurker",
+            lore: "A bloated marsh-thing that swells fat on every excuse left to rot in the shallows.",
+            tier: "lesser",
+            reveal_weight: 50,
+            reveal_text: "The fen has gone silent. No frogs, no birds — only a slow, wet breathing somewhere beneath the reeds.",
+            duration_days: 6,
+            threshold: 0.55,
+            damage_multiplier: 1.3,
+            reward_gold: 450.0,
+            reward_item: Some("rnw-3"),
+            reward_item_chance: 0.45,
+            reward_heal: 25.0,
+            reward_heal_chance: 0.55,
+        },
+        // ── GREATER (weight 22) ───────────────────────────────────────────────
+        BossDef {
             id: "ashwarden",
             name: "The Ashwarden",
             lore: "Ancient golem born of failed resolve, its body fused from the ash of abandoned habits.",
             tier: "greater",
+            reveal_weight: 22,
+            reveal_text: "A messenger collapses at the gate, robes seared black. The Ashwarden has woken, and its embers march on every keep in the vale.",
             duration_days: 7,
             threshold: 0.65,
             damage_multiplier: 1.5,
@@ -45,10 +75,28 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal_chance: 0.4,
         },
         BossDef {
+            id: "stormcaller",
+            name: "The Stormcaller",
+            lore: "A sky-tyrant that gathers where focus scatters, calling down ruin on the unprepared.",
+            tier: "greater",
+            reveal_weight: 22,
+            reveal_text: "The horizon blackens out of season. Thunder rolls with a cadence too deliberate to be weather.",
+            duration_days: 8,
+            threshold: 0.70,
+            damage_multiplier: 1.6,
+            reward_gold: 850.0,
+            reward_item: Some("rnw-7"),
+            reward_item_chance: 0.55,
+            reward_heal: 25.0,
+            reward_heal_chance: 0.4,
+        },
+        BossDef {
             id: "dreadtide",
             name: "Dreadtide",
             lore: "A tidal behemoth that surges when discipline ebbs, swallowing the careless whole.",
             tier: "greater",
+            reveal_weight: 22,
+            reveal_text: "Far out on the black water a bell tolls where no bell should be. The Dreadtide rises with the dark moon.",
             duration_days: 10,
             threshold: 0.75,
             damage_multiplier: 1.75,
@@ -58,11 +106,30 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal: 30.0,
             reward_heal_chance: 0.35,
         },
+        // ── ANCIENT (weight 8) ────────────────────────────────────────────────
+        BossDef {
+            id: "hollow_king",
+            name: "The Hollow King",
+            lore: "A crowned husk that rules a court of the half-finished, demanding tribute in steadfastness.",
+            tier: "ancient",
+            reveal_weight: 8,
+            reveal_text: "You find a throne room of dust and crowns, every seat filled by a king who never finished his reign. One throne stands empty, waiting.",
+            duration_days: 12,
+            threshold: 0.82,
+            damage_multiplier: 1.9,
+            reward_gold: 1500.0,
+            reward_item: Some("rnw-9"),
+            reward_item_chance: 0.7,
+            reward_heal: 40.0,
+            reward_heal_chance: 0.45,
+        },
         BossDef {
             id: "the_undying_vigil",
             name: "The Undying Vigil",
             lore: "An ageless sentinel that tests only the most steadfast. It has never been defeated twice by the same party.",
             tier: "ancient",
+            reveal_weight: 8,
+            reveal_text: "The watchtower is cold, its lanterns long dead, its sentinels standing yet unbreathing — keeping an endless vigil for a foe that never tires.",
             duration_days: 14,
             threshold: 0.90,
             damage_multiplier: 2.0,
@@ -72,6 +139,23 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal: 50.0,
             reward_heal_chance: 0.5,
         },
+        // ── MYTHIC (weight 2) ─────────────────────────────────────────────────
+        BossDef {
+            id: "the_sundering",
+            name: "The Sundering",
+            lore: "Not a beast but an ending — the slow unmaking that comes for every resolve left untended long enough.",
+            tier: "mythic",
+            reveal_weight: 2,
+            reveal_text: "The stars are wrong tonight. A seam of nothing has opened across the sky, and through it something vast and patient regards you.",
+            duration_days: 18,
+            threshold: 0.95,
+            damage_multiplier: 2.5,
+            reward_gold: 3500.0,
+            reward_item: Some("rnw-10"),
+            reward_item_chance: 0.9,
+            reward_heal: 60.0,
+            reward_heal_chance: 0.6,
+        },
     ]
 }
 
@@ -79,9 +163,38 @@ pub fn find(id: &str) -> Option<BossDef> {
     catalogue().into_iter().find(|b| b.id == id)
 }
 
+/// Pick a difficulty-weighted boss to reveal, skipping any id in `exclude`
+/// (already revealed, currently hosted, or in an active quest). Harder bosses
+/// have lower `reveal_weight`, so they surface less often. Returns None when
+/// every revealable boss is already excluded.
+pub fn pick_weighted_unrevealed(exclude: &[&str]) -> Option<BossDef> {
+    use rand::Rng;
+    let candidates: Vec<BossDef> = catalogue()
+        .into_iter()
+        .filter(|b| b.reveal_weight > 0 && !exclude.contains(&b.id))
+        .collect();
+    let total: u32 = candidates.iter().map(|b| b.reveal_weight).sum();
+    if total == 0 {
+        return None;
+    }
+    let mut roll = rand::thread_rng().gen_range(0..total);
+    for b in candidates {
+        if roll < b.reveal_weight {
+            return Some(b);
+        }
+        roll -= b.reveal_weight;
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn catalogue_has_eight_bosses() {
+        assert_eq!(catalogue().len(), 8);
+    }
 
     #[test]
     fn all_thresholds_valid() {
@@ -108,5 +221,35 @@ mod tests {
         let b = find("gloomfang").expect("gloomfang must exist");
         assert_eq!(b.id, "gloomfang");
         assert_eq!(b.tier, "lesser");
+    }
+
+    #[test]
+    fn starter_exists_and_is_revealable() {
+        let b = find(STARTER_BOSS).expect("starter boss must exist");
+        assert!(b.reveal_weight > 0);
+    }
+
+    #[test]
+    fn harder_tiers_have_lower_weight() {
+        let weight = |id: &str| find(id).unwrap().reveal_weight;
+        assert!(weight("gloomfang") > weight("ashwarden"));   // lesser > greater
+        assert!(weight("ashwarden") > weight("the_undying_vigil")); // greater > ancient
+        assert!(weight("the_undying_vigil") > weight("the_sundering")); // ancient > mythic
+    }
+
+    #[test]
+    fn weighted_pick_respects_exclude() {
+        // Exclude all but one → that one must come back.
+        let all: Vec<&str> = catalogue().iter().map(|b| b.id).collect();
+        let keep = "the_sundering";
+        let exclude: Vec<&str> = all.into_iter().filter(|id| *id != keep).collect();
+        let picked = pick_weighted_unrevealed(&exclude).expect("one candidate remains");
+        assert_eq!(picked.id, keep);
+    }
+
+    #[test]
+    fn weighted_pick_none_when_all_excluded() {
+        let all: Vec<&str> = catalogue().iter().map(|b| b.id).collect();
+        assert!(pick_weighted_unrevealed(&all).is_none());
     }
 }
