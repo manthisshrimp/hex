@@ -3,7 +3,8 @@ import { fmtNum } from '../fmt';
 import SectionHeader from '../components/SectionHeader';
 import RandomEventCard from '../components/RandomEventCard';
 import { useFloat } from '../components/FloatLayer';
-import { getHabits, getCharacter, completeHabit, debugAdvanceDays, payFerryman, getHistoryHp, getHistoryGold, getRandomEvent, getTodos, createTodo, completeTodo, deleteTodo, getWeeklyReward, claimWeeklyReward, getParty, cheerMember, addPartyMember, removePartyMember } from '../api';
+import { useNavigate } from 'react-router-dom';
+import { getHabits, getCharacter, completeHabit, debugAdvanceDays, payFerryman, getHistoryHp, getHistoryGold, getRandomEvent, getTodos, createTodo, completeTodo, deleteTodo, getWeeklyReward, claimWeeklyReward, getParty, cheerMember, addPartyMember, removePartyMember, getBoss } from '../api';
 import { IMP_COLOR, SYSTEM_HABIT_ID } from '../constants';
 import { getTodayStr, daysBetween, deadlineLabel } from '../utils';
 
@@ -184,11 +185,13 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [addMemberLoading, setAddMemberLoading] = useState(false);
   const [removeLoading, setRemoveLoading] = useState(null);
+  const [boss, setBoss] = useState(null);
   const [reward, setReward] = useState(null);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [claiming, setClaiming] = useState(false);
 
   const { addFloat } = useFloat();
+  const navigate = useNavigate();
   const [advancing, setAdvancing] = useState(false);
 
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -225,6 +228,13 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
     } catch { /* ignore */ } finally { setPartyLoading(false); }
   }, []);
 
+  const loadBoss = useCallback(async () => {
+    try {
+      const res = await getBoss();
+      if (res.ok) setBoss(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
   const loadHabits = useCallback(async () => {
     try {
       const res = await getHabits();
@@ -256,7 +266,8 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
     getTodos().then(r => r.ok ? r.json() : []).then(setTodos).catch(() => {});
     loadReward();
     loadParty();
-  }, [loadHabits, loadParty, loadReward]);
+    loadBoss();
+  }, [loadHabits, loadParty, loadReward, loadBoss]);
 
   const handleComplete = useCallback(async (habitId) => {
     if (completedIds.has(habitId)) return;
@@ -455,6 +466,61 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
               ? 'A party member rallied behind you today, restoring your vigour.'
               : `${cheersToday.length} allies rallied behind you today, restoring your vigour.`}
           </div>
+        </div>
+      )}
+      {boss?.active && (
+        <div style={{
+          border: '1px solid #7a2020',
+          background: 'linear-gradient(135deg, #1a0a0a 0%, #2a1010 100%)',
+          padding: '10px 16px',
+          marginBottom: '12px',
+          cursor: 'pointer',
+        }} onClick={() => navigate('/boss')}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontFamily: "'Cinzel', serif", fontSize: '0.8rem', color: '#c04040', letterSpacing: '0.12em' }}>
+              ⚔ {boss.active.boss?.name ?? 'UNKNOWN THREAT'}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+              {boss.active.myContributedToday ? '✓ Advanced today' : '— Not yet advanced'}
+            </div>
+          </div>
+          <div style={{ marginTop: '6px', height: '6px', background: '#3a1010', borderRadius: '3px' }}>
+            <div style={{
+              height: '100%',
+              borderRadius: '3px',
+              background: '#c04040',
+              width: `${Math.max(0, Math.min(100, 100 * (1 - (boss.active.quest?.hpRemaining ?? 0) / (boss.active.quest?.hpPool ?? 1))))}%`,
+            }} />
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
+            {Math.round(100 * (1 - (boss.active.quest?.hpRemaining ?? 0) / (boss.active.quest?.hpPool ?? 1)))}% felled
+          </div>
+        </div>
+      )}
+      {!boss?.active && boss?.revealed?.length > 0 && (
+        <div style={{
+          border: '1px solid #5a3a10',
+          background: '#1a1008',
+          padding: '8px 16px',
+          marginBottom: '12px',
+          cursor: 'pointer',
+          fontSize: '0.78rem',
+          color: '#b07820',
+        }} onClick={() => navigate('/boss')}>
+          ⚠ A threat has been revealed — visit the Boss tab
+        </div>
+      )}
+      {!boss?.active && boss?.invitations?.length > 0 && (
+        <div style={{
+          border: '1px solid #204a5a',
+          background: '#0a1a1f',
+          padding: '8px 16px',
+          marginBottom: '12px',
+          cursor: 'pointer',
+          fontSize: '0.78rem',
+          color: '#3090b0',
+        }} onClick={() => navigate('/boss')}>
+          ⚔ You have been invited to join a boss quest
         </div>
       )}
       {randomEvent && (

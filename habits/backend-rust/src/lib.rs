@@ -6,6 +6,7 @@ pub mod game;
 pub mod tick;
 pub mod handlers;
 pub mod random_events_catalogue;
+pub mod bosses_catalogue;
 pub mod sync;
 
 pub use error::AppError;

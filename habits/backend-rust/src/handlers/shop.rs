@@ -131,6 +131,7 @@ pub async fn buy_item(
     // Add to inventory.
     let mut equipment = state.store.equipment.get();
     equipment.inventory.push(id.clone());
+    equipment.durability.entry(item.id.clone()).or_insert(item.max_durability);
     state.store.equipment.save(equipment).await?;
 
     Ok(Json(json!({ "item_id": id, "new_gold": new_gold })))

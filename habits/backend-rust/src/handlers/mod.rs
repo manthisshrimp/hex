@@ -9,6 +9,7 @@ pub mod todos;
 pub mod deeds;
 pub mod service;
 pub mod party;
+pub mod boss;
 
 use std::sync::Arc;
 use axum::http::HeaderMap;

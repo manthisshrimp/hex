@@ -115,9 +115,13 @@ pub struct Item {
     pub armor: u32,
     pub price: u64,
     pub description: String,
+    #[serde(default = "default_max_durability")]
+    pub max_durability: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub required_renown: Option<u32>,
 }
+
+fn default_max_durability() -> u32 { 100 }
 
 /// Persisted per-character equipment state.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -127,6 +131,8 @@ pub struct EquipmentState {
     pub equipped: std::collections::HashMap<String, String>,
     /// item ids owned but not necessarily equipped
     pub inventory: Vec<String>,
+    #[serde(default)]
+    pub durability: std::collections::HashMap<String, u32>,
 }
 
 /// A habit shown in the morning check-in prompt.
@@ -385,6 +391,100 @@ pub struct ReceiveCheerRequest {
     pub from_url: String,
 }
 
+// ── Boss Quests ───────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct BossState {
+    pub hosted: Option<HostedQuest>,
+    pub participating: Option<Participation>,
+    #[serde(default)]
+    pub revealed: Vec<RevealedBoss>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostedQuest {
+    pub quest_id: String,
+    pub boss_id: String,
+    pub host_url: String,
+    pub started_at: String,     // YYYY-MM-DD
+    pub duration_days: u32,
+    pub ends_at: String,        // YYYY-MM-DD
+    pub hp_pool: f64,
+    pub hp_remaining: f64,
+    pub contributions: std::collections::HashMap<String, MemberContribution>,
+    pub status: String,         // "active" | "ended"
+    pub ended_at: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MemberContribution {
+    pub last_date: String,
+    pub total: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Participation {
+    pub quest_id: String,
+    pub boss_id: String,
+    pub host_url: String,
+    pub started_at: String,
+    pub ends_at: String,        // snapshotted — self-resolve if host offline
+    pub last_contributed_date: String,
+    #[serde(default)]
+    pub outbox: Vec<DailyContribution>,  // queued contributions, retried on next tick
+    #[serde(default)]
+    pub broken_gear: Vec<String>,        // item ids broken during this quest
+    pub outcome: Option<String>,         // "victory" | "defeat" | "abandoned"
+    #[serde(default)]
+    pub reward_claimed: bool,
+    pub resolved_at: Option<String>,
+    pub cached_state: Option<HostedQuest>, // last poll of host, for rendering
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyContribution {
+    pub date: String,
+    pub p: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RevealedBoss {
+    pub boss_id: String,
+    pub revealed_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LaunchBossRequest {
+    pub boss_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JoinBossRequest {
+    pub host_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ParticipantRequest {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContributeRequest {
+    pub url: String,
+    pub date: String,
+    pub p: f64,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -423,5 +523,26 @@ mod tests {
         };
         let v: serde_json::Value = serde_json::to_value(&ev).unwrap();
         assert!(v.get("habitId").is_some(), "habit_id should serialize as habitId");
+    }
+
+    #[test]
+    fn hosted_quest_camel_case_keys() {
+        let quest = HostedQuest {
+            quest_id: "q1".to_string(),
+            boss_id: "gloomfang".to_string(),
+            host_url: "https://example.com".to_string(),
+            started_at: "2026-07-01".to_string(),
+            duration_days: 7,
+            ends_at: "2026-07-08".to_string(),
+            hp_pool: 4.2,
+            hp_remaining: 4.2,
+            contributions: std::collections::HashMap::new(),
+            status: "active".to_string(),
+            ended_at: None,
+        };
+        let v: serde_json::Value = serde_json::to_value(&quest).unwrap();
+        assert!(v.get("hpRemaining").is_some(), "must serialize as hpRemaining");
+        assert!(v.get("bossId").is_some(), "must serialize as bossId");
+        assert!(v.get("hp_remaining").is_none(), "must NOT serialize as hp_remaining");
     }
 }

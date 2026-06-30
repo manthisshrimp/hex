@@ -258,3 +258,69 @@ whether it violates an invariant.
 5. **Reschedule is a pressure valve, not a free pass.** Escalating cost per
    cycle prevents reschedules from neutralising the consequence of a habit
    entirely.
+
+---
+
+## Boss Quests
+
+A **boss quest** is a multi-day party challenge that runs on top of the normal
+habit loop.
+
+### Discovery
+
+A special random encounter — *A Ranger's Warning* — reveals a boss. Revealed
+bosses appear in the Boss tab and can be launched.
+
+### Launching & joining
+
+Any party member can **launch** a revealed boss (free). Other party members
+can **join** the host's active quest (free, one active quest at a time per
+player). Launch and join are no-ops if a quest is already active.
+
+### Shared HP
+
+The party fights a **single boss with one shared HP bar**, owned by the host:
+
+- `hp_pool = participants × duration_days × threshold`
+- Each member's `hp_pool` share grows by `D × θ` each time someone joins.
+- Victory when `hp_remaining ≤ 0` before `ends_at`.
+
+Each day, every participant's **daily completion** `p(d)` is reported to the
+host, which subtracts it from `hp_remaining`:
+
+- `p(d) = done(d) / due(d)`, clamped to [0, 1].
+- `due(d)` = active non-inscribed habits (all habits count every day).
+- `done(d)` = habits with a completion on day `d`.
+- Days with no habits due: `p(d) = 1.0` (full credit).
+
+### Extra damage
+
+While a boss is active, **every miss penalty is multiplied** by the boss's
+`damage_multiplier`. No new damage source — existing misses bite harder.
+
+### Gear degradation
+
+Equipped gear **wears** each boss-day (`8` durability per item). When an
+item's durability reaches `0` it **breaks**: removed from equipped and
+inventory, logged as a casualty in the end-of-quest summary. Gear is
+consumable — no repair; the shop is the re-buy sink.
+
+Random encounters (resolved outside a boss) also wear gear (`5` per item).
+
+### Victory rewards
+
+On victory, every participant receives:
+- **Always:** `reward_gold` gold.
+- **Sometimes:** a unique item (per-boss probability).
+- **Sometimes:** `reward_heal` HP (per-boss probability, capped at max HP).
+
+Defeat grants nothing. Ended quests are visible for 30 days, then pruned.
+
+### Bosses
+
+| Boss | Tier | Duration | Avg % needed | Damage ×  |
+|---|---|---|---|---|
+| Gloomfang | lesser | 5 days | 50% | 1.25× |
+| The Ashwarden | greater | 7 days | 65% | 1.5× |
+| Dreadtide | greater | 10 days | 75% | 1.75× |
+| The Undying Vigil | ancient | 14 days | 90% | 2.0× |

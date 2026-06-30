@@ -248,6 +248,17 @@ pub async fn resolve_random_event(
     ev_state.next_event_at = Some(cat::next_event_date(game::today()));
     state.store.random_events.save(ev_state).await?;
 
+    if let Some(boss_id) = def.reveals_boss {
+        let mut boss_state = state.store.boss.get();
+        if !boss_state.revealed.iter().any(|r| r.boss_id == boss_id) {
+            boss_state.revealed.push(crate::models::RevealedBoss {
+                boss_id: boss_id.to_string(),
+                revealed_at: today_str.clone(),
+            });
+            let _ = state.store.boss.save(boss_state).await;
+        }
+    }
+
     Ok(Json(ResolveResponse {
         outcome_text: outcome.text.to_string(),
         hp_delta: hp_delta_actual,
@@ -306,6 +317,17 @@ pub async fn choose_random_event(
     ev_state.history.truncate(10);
     ev_state.next_event_at = Some(cat::next_event_date(game::today()));
     state.store.random_events.save(ev_state).await?;
+
+    if let Some(boss_id) = def.reveals_boss {
+        let mut boss_state = state.store.boss.get();
+        if !boss_state.revealed.iter().any(|r| r.boss_id == boss_id) {
+            boss_state.revealed.push(crate::models::RevealedBoss {
+                boss_id: boss_id.to_string(),
+                revealed_at: today_str.clone(),
+            });
+            let _ = state.store.boss.save(boss_state).await;
+        }
+    }
 
     Ok(Json(ResolveResponse {
         outcome_text: outcome.text.to_string(),

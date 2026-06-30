@@ -112,6 +112,25 @@ export const updateDeed = (id, data) => apiFetch(`/habits/api/deeds/${id}`, { me
 export const deleteDeed = (id) => apiFetch(`/habits/api/deeds/${id}`, { method: 'DELETE' });
 export const logDeed = (id) => apiFetch(`/habits/api/deeds/${id}/log`, { method: 'POST' });
 
+// ── Boss quests ───────────────────────────────────────────────────────────────
+
+export const getBoss = () => apiFetch('/habits/api/boss');
+
+export const launchBoss = (bossId) =>
+  apiFetch('/habits/api/boss/launch', {
+    method: 'POST',
+    body: JSON.stringify({ bossId }),
+  });
+
+export const joinBoss = (hostUrl) =>
+  apiFetch('/habits/api/boss/join', {
+    method: 'POST',
+    body: JSON.stringify({ hostUrl }),
+  });
+
+export const abandonBoss = () =>
+  apiFetch('/habits/api/boss/abandon', { method: 'POST' });
+
 export const submitCheckin = (completedIds) =>
   apiFetch('/habits/api/character/checkin', {
     method: 'POST',

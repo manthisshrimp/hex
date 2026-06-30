@@ -347,3 +347,79 @@ habits/
 - Party / federation endpoint (`GET /api/character/public`)
 - Unlock and achievement system
 - Gold shop beyond reschedules
+
+---
+
+## Boss Quests API
+
+### Peer endpoints (no auth — server-to-server)
+
+#### GET /api/boss/active
+Returns the host's canonical quest state, or `null` when no active quest or
+after `ended_at + 30 days`.
+
+```json
+{
+  "questId": "uuid",
+  "bossId": "gloomfang",
+  "hostUrl": "https://...",
+  "startedAt": "YYYY-MM-DD",
+  "durationDays": 7,
+  "endsAt": "YYYY-MM-DD",
+  "hpPool": 4.2,
+  "hpRemaining": 3.1,
+  "status": "active",
+  "endedAt": null,
+  "contributions": {
+    "https://member": { "lastDate": "YYYY-MM-DD", "total": 1.1 }
+  }
+}
+```
+
+#### POST /api/boss/participants
+Body: `{ "url": "https://..." }`
+Idempotent. Grows `hpPool` and `hpRemaining` by `durationDays × threshold` per new joiner.
+Response: `{ "ok": true }`
+
+#### POST /api/boss/contribute
+Body: `{ "url": "https://...", "date": "YYYY-MM-DD", "p": 0.8 }`
+Idempotent per `(url, date)`. Subtracts `p` from `hpRemaining`. Flips
+`status = "ended"` when `hpRemaining ≤ 0` or window closes.
+Response: `{ "hpRemaining": 2.3, "status": "active" }`
+
+### Owner endpoints (auth: X-Admin-Token)
+
+#### POST /api/boss/launch
+Body: `{ "bossId": "gloomfang" }`
+Boss must be in `revealed`. No quest must be active.
+Response: `{ "ok": true }`
+
+#### POST /api/boss/join
+Body: `{ "hostUrl": "https://..." }`
+Fetches host `/api/boss/active`, snapshots, calls host `/api/boss/participants`.
+Response: `{ "ok": true }`
+
+#### POST /api/boss/abandon
+Marks participation as abandoned.
+Response: `{ "ok": true }`
+
+#### GET /api/boss
+Returns the full UI aggregate: active quest (with shared HP, leaderboard, gear
+durability), revealed bosses, party invitations, recent quests (last 30 days).
+Also polls party peers for invitations and flushes the contribution outbox.
+
+```json
+{
+  "active": {
+    "boss": { "...BossDef fields..." },
+    "quest": { "...HostedQuest shape..." },
+    "myContribution": 1.1,
+    "myContributedToday": true,
+    "gear": [{ "slot": "weapon", "name": "Iron Sword", "durability": 80, "max": 100 }],
+    "leaderboard": [{ "url": "https://...", "total": 1.1 }]
+  },
+  "revealed": [{ "...BossDef..." }],
+  "invitations": [{ "hostUrl": "...", "boss": { "...BossDef..." }, "participants": 3 }],
+  "recent": [{ "boss": { "...BossDef..." }, "outcome": "victory", "brokenGear": ["Rusted Blade"], "resolvedAt": "YYYY-MM-DD" }]
+}
+```

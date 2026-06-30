@@ -28,6 +28,10 @@ use habits_backend::handlers::{
         get_public, update_character, get_party, add_member, add_me,
         remove_member, remove_me, cheer, receive_cheer,
     },
+    boss::{
+        get_active, post_participants, post_contribute,
+        post_launch, post_join, post_abandon, get_boss,
+    },
 };
 use habits_backend::models::Item;
 
@@ -152,6 +156,14 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/api/deeds", get(list_deeds).post(create_deed))
         .route("/api/deeds/:id", put(update_deed).delete(delete_deed))
         .route("/api/deeds/:id/log", post(log_deed))
+        // Boss routes — static paths before any /:id catch-alls
+        .route("/api/boss/active", get(get_active))
+        .route("/api/boss/participants", post(post_participants))
+        .route("/api/boss/contribute", post(post_contribute))
+        .route("/api/boss/launch", post(post_launch))
+        .route("/api/boss/join", post(post_join))
+        .route("/api/boss/abandon", post(post_abandon))
+        .route("/api/boss", get(get_boss))
         // Service routes — authenticated via X-Api-Key (inter-app calls from task-board)
         .route("/api/service/todos", post(service_create_todo))
         .route("/api/service/todos/:id/complete", post(service_complete_todo))

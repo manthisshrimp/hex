@@ -68,6 +68,7 @@ pub struct EventDef {
     pub title: &'static str,
     pub text: &'static str,
     pub kind: EventKind,
+    pub reveals_boss: Option<&'static str>,
 }
 
 /// Returns the full catalogue. Cheap to call — all data is 'static.
@@ -86,6 +87,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 30, outcome: OutcomeDef { text: "They see your plate and think twice. You walk on, unharmed.", hp_delta: 0.0, gold_delta: 0.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "storm-in-the-pass",
@@ -99,6 +101,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 30, outcome: OutcomeDef { text: "You find shelter in your heavy mantle. The storm passes around you.", hp_delta: 3.0, gold_delta: 0.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "plague-village",
@@ -112,6 +115,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 70, outcome: OutcomeDef { text: "Your constitution holds against the pestilence. A mild malaise, nothing more.", hp_delta: -3.0, gold_delta: 0.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "old-wound",
@@ -124,6 +128,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 50, outcome: OutcomeDef { text: "A dull ache, but manageable. You bind it tightly and press on.", hp_delta: -3.0, gold_delta: 0.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "moonlit-spring",
@@ -137,6 +142,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 80, outcome: OutcomeDef { text: "A gentle refreshment. Your body needed little — you drink deeply anyway.", hp_delta: 5.0, gold_delta: 0.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "arena-exhibition",
@@ -150,6 +156,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 25, outcome: OutcomeDef { text: "A masterful display. The arena master presses a heavy purse into your hands.", hp_delta: 0.0, gold_delta: 130.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "forest-dungeon",
@@ -163,6 +170,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 25, outcome: OutcomeDef { text: "You cut through to the vault. The hoard is yours to carry.", hp_delta: -5.0, gold_delta: 100.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "ancient-shrine",
@@ -174,6 +182,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "You kneel at the forgotten altar. A warmth spreads through your chest like embers catching flame.", hp_delta: 12.0, gold_delta: 0.0 } },
                 ],
             },
+            reveals_boss: None,
         },
         // ── CHOICE (12) ──────────────────────────────────────────────────────
         EventDef {
@@ -194,6 +203,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "cursed-tome",
@@ -213,6 +223,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "crossroads-gamble",
@@ -237,6 +248,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "arena-challenge",
@@ -261,6 +273,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "dark-ritual",
@@ -280,6 +293,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "wounded-traveller",
@@ -299,6 +313,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "goblin-horde",
@@ -323,6 +338,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "forbidden-well",
@@ -347,6 +363,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "mercenary-camp",
@@ -366,6 +383,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "alchemy-lab",
@@ -390,6 +408,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "treasure-map",
@@ -414,6 +433,7 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
         },
         EventDef {
             id: "forsaken-temple",
@@ -438,6 +458,19 @@ pub fn catalogue() -> Vec<EventDef> {
                     },
                 ],
             },
+            reveals_boss: None,
+        },
+        EventDef {
+            id: "scouting_report",
+            title: "A Ranger's Warning",
+            text: "A weathered ranger staggers into camp, clutching a report. \"I've tracked it for days,\" she rasps. \"Something ancient stirs in the dark. Gather your allies before it comes to you.\"",
+            kind: EventKind::Passive {
+                stat: StatType::None,
+                tiers: vec![
+                    PassiveTier { min_stat: 0, outcome: OutcomeDef { text: "The warning unsettles you, but the knowledge is power.", hp_delta: 0.0, gold_delta: 0.0 } },
+                ],
+            },
+            reveals_boss: Some("gloomfang"),
         },
     ]
 }
@@ -489,5 +522,25 @@ pub fn resolve_choice_effect<'a>(
             };
             if val >= *threshold { above } else { below }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scouting_report_reveals_gloomfang() {
+        let cat = catalogue();
+        let event = cat.iter().find(|e| e.id == "scouting_report")
+            .expect("scouting_report must be in catalogue");
+        assert_eq!(event.reveals_boss, Some("gloomfang"));
+    }
+
+    #[test]
+    fn existing_events_have_none_reveals() {
+        let cat = catalogue();
+        let reveals_count = cat.iter().filter(|e| e.reveals_boss.is_some()).count();
+        assert_eq!(reveals_count, 1, "exactly one reveal event expected");
     }
 }

@@ -2,13 +2,125 @@ use axum::{extract::State, http::HeaderMap, Json};
 use chrono::NaiveDate;
 use uuid::Uuid;
 use std::collections::HashMap;
+use std::time::Duration;
 use serde::Deserialize;
+use reqwest::Client;
 
 use crate::error::AppError;
-use crate::models::{Character, CharacterResponse, CheckinHabit, Completion, GoldEvent, Importance};
+use crate::models::{Character, CharacterResponse, CheckinHabit, Completion, DailyContribution, GoldEvent, HealthEvent, HostedQuest, Importance, MemberContribution};
 use crate::game::{self, SYSTEM_HABIT_ID};
 use crate::tick::{TickInput, process_tick};
 use super::AppState;
+
+/// Compute boss tick parameters for a given day.
+/// Returns (boss_active, damage_multiplier, wear_per_day).
+fn boss_tick_params(
+    participating: &Option<crate::models::Participation>,
+    day: NaiveDate,
+) -> (bool, f64, u32) {
+    let Some(p) = participating else { return (false, 1.0, 0); };
+    let started = game::parse_iso_date(&p.started_at).unwrap_or(day);
+    let ends   = game::parse_iso_date(&p.ends_at).unwrap_or(day);
+    if day < started || day >= ends {
+        return (false, 1.0, 0);
+    }
+    let multiplier = crate::bosses_catalogue::find(&p.boss_id)
+        .map(|b| b.damage_multiplier)
+        .unwrap_or(1.0);
+    (true, multiplier, 8) // ponytail: wear_per_day constant; parameterise if bosses diverge
+}
+
+/// Apply gear wear from a boss-day and submit/queue the daily contribution.
+/// Best-effort: errors are swallowed so they don't interrupt the character tick.
+async fn apply_boss_outputs(
+    state: &AppState,
+    gear_wear: u32,
+    contribution: Option<DailyContribution>,
+) {
+    if gear_wear > 0 {
+        let eq = state.store.equipment.get();
+        let (new_eq, broken) = game::apply_wear(&eq, gear_wear, &state.catalogue);
+        let _ = state.store.equipment.save(new_eq).await;
+        if !broken.is_empty() {
+            let mut bs = state.store.boss.get();
+            if let Some(ref mut p) = bs.participating {
+                p.broken_gear.extend(broken);
+            }
+            let _ = state.store.boss.save(bs).await;
+        }
+    }
+
+    let Some(contrib) = contribution else { return; };
+    let mut bs = state.store.boss.get();
+    let Some(ref p) = bs.participating.clone() else { return; };
+
+    // Idempotency: skip if already contributed for this date.
+    if !p.last_contributed_date.is_empty() && contrib.date <= p.last_contributed_date {
+        return;
+    }
+
+    let my_url = std::env::var("MY_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+    if p.host_url == my_url {
+        // Self-hosted: apply directly to hosted quest.
+        if let Some(ref mut hosted) = bs.hosted {
+            let today_str = game::today_str();
+            let entry = hosted.contributions
+                .entry(my_url.clone())
+                .or_insert(MemberContribution { last_date: String::new(), total: 0.0 });
+            if contrib.date > entry.last_date {
+                hosted.hp_remaining -= contrib.p;
+                entry.total += contrib.p;
+                entry.last_date = contrib.date.clone();
+            }
+            if hosted.hp_remaining <= 0.0 && hosted.status == "active" {
+                hosted.status = "ended".to_string();
+                hosted.ended_at = Some(today_str);
+            }
+        }
+        if let Some(ref mut part) = bs.participating {
+            part.last_contributed_date = contrib.date.clone();
+        }
+        let _ = state.store.boss.save(bs).await;
+    } else {
+        // POST to host.
+        let host_contribute_url = format!(
+            "{}/habits/api/boss/contribute",
+            p.host_url.trim_end_matches('/')
+        );
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+        let payload = serde_json::json!({
+            "url": my_url,
+            "date": contrib.date,
+            "p": contrib.p,
+        });
+        let ok = client.post(&host_contribute_url)
+            .json(&payload)
+            .send()
+            .await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false);
+
+        if ok {
+            if let Some(ref mut part) = bs.participating {
+                part.last_contributed_date = contrib.date.clone();
+                part.outbox.retain(|o| o.date != contrib.date);
+            }
+        } else {
+            // Queue for retry.
+            if let Some(ref mut part) = bs.participating {
+                if !part.outbox.iter().any(|o| o.date == contrib.date) {
+                    part.outbox.push(contrib);
+                }
+            }
+        }
+        let _ = state.store.boss.save(bs).await;
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,6 +208,9 @@ pub async fn get_character(
         let mut current_character = state.store.character.get();
         let mut day = last_tick + chrono::Duration::days(1);
 
+        let boss_state = state.store.boss.get();
+        let participating = boss_state.participating.clone();
+
         // Stop strictly before today — today's tick waits for check-in.
         while day < today {
             let raw_deadlines = state.store.deadlines.get_all();
@@ -106,6 +221,7 @@ pub async fn get_character(
                 })
                 .collect();
 
+            let (boss_active, boss_mult, boss_wear) = boss_tick_params(&participating, day);
             let input = TickInput {
                 date: day,
                 habits: active_habits.clone(),
@@ -115,6 +231,9 @@ pub async fn get_character(
                 current_gold: current_character.gold,
                 current_renown: current_character.renown,
                 config: state.config.clone(),
+                boss_active,
+                boss_damage_multiplier: boss_mult,
+                boss_wear_per_day: boss_wear,
             };
 
             let output = process_tick(input);
@@ -139,10 +258,22 @@ pub async fn get_character(
             current_character.gold = output.new_gold;
             current_character.renown = output.new_renown;
             current_character.last_tick_date = day.format("%Y-%m-%d").to_string();
+            apply_boss_outputs(&state, output.gear_wear, output.boss_contribution).await;
             day += chrono::Duration::days(1);
         }
 
         state.store.character.save(current_character).await?;
+
+        // Retry any queued boss contributions that failed during earlier ticks.
+        {
+            let bs = state.store.boss.get();
+            let pending: Vec<DailyContribution> = bs.participating.as_ref()
+                .map(|p| p.outbox.clone())
+                .unwrap_or_default();
+            for contrib in pending {
+                apply_boss_outputs(&state, 0, Some(contrib)).await;
+            }
+        }
     }
 
     // ── Step 3: Check if today's tick is pending and needs check-in ─────────────
@@ -232,6 +363,10 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
         .filter_map(|(k, v)| NaiveDate::parse_from_str(v, "%Y-%m-%d").ok().map(|d| (k.clone(), d)))
         .collect();
 
+    let boss_state = state.store.boss.get();
+    let participating = boss_state.participating.clone();
+    let (boss_active, boss_mult, boss_wear) = boss_tick_params(&participating, today);
+
     let mut current_character = state.store.character.get();
     let input = TickInput {
         date: today,
@@ -242,6 +377,9 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
         current_gold: current_character.gold,
         current_renown: current_character.renown,
         config: state.config.clone(),
+        boss_active,
+        boss_damage_multiplier: boss_mult,
+        boss_wear_per_day: boss_wear,
     };
     let output = process_tick(input);
 
@@ -261,6 +399,7 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
     current_character.gold = output.new_gold;
     current_character.renown = output.new_renown;
     current_character.last_tick_date = today.format("%Y-%m-%d").to_string();
+    apply_boss_outputs(state, output.gear_wear, output.boss_contribution).await;
     state.store.character.save(current_character).await?;
     Ok(())
 }

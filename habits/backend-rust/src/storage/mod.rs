@@ -10,6 +10,7 @@ pub mod completed_todos;
 pub mod deeds;
 pub mod deed_logs;
 pub mod party;
+pub mod boss;
 
 pub use habits::HabitsStore;
 pub use completions::CompletionsStore;
@@ -23,6 +24,7 @@ pub use completed_todos::CompletedTodosStore;
 pub use deeds::DeedsStore;
 pub use deed_logs::DeedLogsStore;
 pub use party::PartyStore;
+pub use boss::BossStore;
 
 #[derive(Clone)]
 pub struct AppStore {
@@ -38,6 +40,7 @@ pub struct AppStore {
     pub deeds: DeedsStore,
     pub deed_logs: DeedLogsStore,
     pub party: PartyStore,
+    pub boss: BossStore,
 }
 
 impl AppStore {
@@ -54,6 +57,7 @@ impl AppStore {
         let deeds = DeedsStore::new(data_dir).await?;
         let deed_logs = DeedLogsStore::new(data_dir).await?;
         let party = PartyStore::new(data_dir).await?;
-        Ok(Self { habits, completions, events, character, deadlines, equipment, random_events, todos, completed_todos, deeds, deed_logs, party })
+        let boss = BossStore::new(data_dir).await?;
+        Ok(Self { habits, completions, events, character, deadlines, equipment, random_events, todos, completed_todos, deeds, deed_logs, party, boss })
     }
 }

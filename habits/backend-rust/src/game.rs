@@ -248,6 +248,57 @@ pub fn compute_consistency_windowed(
     (completed_cycles as f64 / total_cycles as f64).min(1.0)
 }
 
+// ── Boss fight helpers ────────────────────────────────────────────────────────
+
+/// Fraction of today's due habits completed. `due == 0` yields 1.0 (full credit
+/// — a rest day helps the party). Clamped to [0, 1].
+pub fn daily_completion(due: u32, done: u32) -> f64 {
+    if due == 0 { return 1.0; }
+    (done as f64 / due as f64).min(1.0)
+}
+
+/// Shared boss HP pool, scaled by roster size so difficulty (avg θ needed) is
+/// invariant to party size.
+pub fn boss_hp_pool(participants: u32, duration_days: u32, threshold: f64) -> f64 {
+    participants as f64 * duration_days as f64 * threshold
+}
+
+/// Subtract `wear` from each equipped item's current durability.
+/// Missing durability entry is treated as full (`max_durability` from the item).
+/// Returns the updated EquipmentState and the ids of items that broke (durability ≤ 0).
+/// Broken items are removed from `equipped`, `inventory`, and `durability`.
+pub fn apply_wear(
+    equipment: &crate::models::EquipmentState,
+    wear: u32,
+    catalogue: &[crate::models::Item],
+) -> (crate::models::EquipmentState, Vec<String>) {
+    let mut eq = equipment.clone();
+    let mut broken: Vec<String> = Vec::new();
+
+    // Collect all item ids that are either equipped or in inventory.
+    let all_equipped: Vec<String> = eq.equipped.values().cloned().collect();
+    for item_id in &all_equipped {
+        let max = catalogue.iter()
+            .find(|i| &i.id == item_id)
+            .map(|i| i.max_durability)
+            .unwrap_or(100);
+        let current = eq.durability.entry(item_id.clone()).or_insert(max);
+        *current = current.saturating_sub(wear);
+        if *current == 0 {
+            broken.push(item_id.clone());
+        }
+    }
+
+    // Remove broken items from equipped, inventory, and durability.
+    for id in &broken {
+        eq.equipped.retain(|_, v| v != id);
+        eq.inventory.retain(|v| v != id);
+        eq.durability.remove(id);
+    }
+
+    (eq, broken)
+}
+
 // ── Unit tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -587,5 +638,82 @@ mod tests {
         let completions = vec![completion("h1", &far_past.format("%Y-%m-%d").to_string())];
         let c = compute_consistency_windowed(&cfg(), &completions, as_of, 7);
         assert_eq!(c, 0.0, "expected 0.0, got {c}");
+    }
+
+    // ── daily_completion ─────────────────────────────────────────────────────
+
+    #[test]
+    fn daily_completion_zero_due_gives_full_credit() {
+        assert_eq!(daily_completion(0, 0), 1.0);
+    }
+
+    #[test]
+    fn daily_completion_partial() {
+        assert!((daily_completion(4, 3) - 0.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn daily_completion_clamped_to_one() {
+        assert_eq!(daily_completion(2, 5), 1.0);
+    }
+
+    // ── boss_hp_pool ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn boss_hp_pool_scales_with_participants() {
+        let solo = boss_hp_pool(1, 7, 0.6);
+        let duo  = boss_hp_pool(2, 7, 0.6);
+        assert!((solo - 4.2).abs() < 1e-9);
+        assert!((duo  - 8.4).abs() < 1e-9);
+    }
+
+    // ── apply_wear ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn apply_wear_reduces_durability() {
+        use crate::models::{EquipmentState, Item, Importance};
+        let item = Item {
+            id: "wpn-n-1".to_string(),
+            name: "Worn Sword".to_string(),
+            slot: "weapon".to_string(),
+            tier: "normal".to_string(),
+            damage: 5,
+            armor: 0,
+            price: 50,
+            description: "test".to_string(),
+            required_renown: None,
+            max_durability: 100,
+        };
+        let mut eq = EquipmentState::default();
+        eq.equipped.insert("weapon".to_string(), "wpn-n-1".to_string());
+
+        let (eq2, broken) = apply_wear(&eq, 10, &[item]);
+        assert!(broken.is_empty());
+        assert_eq!(*eq2.durability.get("wpn-n-1").unwrap(), 90);
+    }
+
+    #[test]
+    fn apply_wear_breaks_item_at_zero() {
+        use crate::models::{EquipmentState, Item};
+        let item = Item {
+            id: "wpn-n-1".to_string(),
+            name: "Worn Sword".to_string(),
+            slot: "weapon".to_string(),
+            tier: "normal".to_string(),
+            damage: 5,
+            armor: 0,
+            price: 50,
+            description: "test".to_string(),
+            required_renown: None,
+            max_durability: 10,
+        };
+        let mut eq = EquipmentState::default();
+        eq.equipped.insert("weapon".to_string(), "wpn-n-1".to_string());
+        eq.durability.insert("wpn-n-1".to_string(), 5);
+
+        let (eq2, broken) = apply_wear(&eq, 10, &[item]);
+        assert_eq!(broken, vec!["wpn-n-1"]);
+        assert!(eq2.equipped.is_empty(), "broken item must be unequipped");
+        assert!(eq2.durability.get("wpn-n-1").is_none(), "broken item durability must be removed");
     }
 }

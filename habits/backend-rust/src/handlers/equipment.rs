@@ -80,6 +80,7 @@ pub async fn equip_item(
 
     // Equip (previous item in slot stays in inventory).
     eq.equipped.insert(target_slot.clone(), id.clone());
+    eq.durability.entry(id.clone()).or_insert(item.max_durability);
     state.store.equipment.save(eq).await?;
 
     Ok(Json(json!({ "slot": target_slot, "item_id": id })))
