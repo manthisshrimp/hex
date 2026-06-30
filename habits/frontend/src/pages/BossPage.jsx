@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import SectionHeader from '../components/SectionHeader';
 import { getBoss, launchBoss, joinBoss, abandonBoss } from '../api';
+import { getTodayStr, daysBetween } from '../utils';
 
 const TIER_COLOR = { lesser: '#80b040', greater: '#4080c0', ancient: '#c04080', mythic: '#e0a020' };
 
@@ -10,16 +11,32 @@ const HP_SCALE = 100;
 const dmg = (p) => Math.round(p * HP_SCALE);
 
 function HpBar({ remaining, pool }) {
-  const pct = pool > 0 ? Math.min(100, (remaining / pool) * 100) : 0;
+  const pct = pool > 0 ? Math.max(0, Math.min(100, (remaining / pool) * 100)) : 0;
   const felledPct = (100 - pct).toFixed(1);
   return (
     <div style={{ marginBottom: '10px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-        <span>{felledPct}% felled</span>
         <span>{dmg(Math.max(0, remaining))} / {dmg(pool)} HP</span>
+        <span>{felledPct}% felled</span>
       </div>
-      <div style={{ height: '8px', background: '#3a1010', borderRadius: '4px' }}>
-        <div style={{ height: '100%', background: '#c04040', borderRadius: '4px', width: `${100 - pct}%` }} />
+      <div style={{ height: '8px', background: '#2a0c0c', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: '#c04040', borderRadius: '4px', width: `${pct}%`, transition: 'width 0.4s' }} />
+      </div>
+    </div>
+  );
+}
+
+function TimeBar({ endsAt, durationDays }) {
+  const daysLeft = Math.max(0, daysBetween(getTodayStr(), endsAt));
+  const pct = durationDays > 0 ? Math.max(0, Math.min(100, (daysLeft / durationDays) * 100)) : 0;
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '4px' }}>
+        <span>{daysLeft} {daysLeft === 1 ? 'day' : 'days'} remaining</span>
+        <span>ends {endsAt}</span>
+      </div>
+      <div style={{ height: '6px', background: '#0d1a22', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: '#3a90b0', borderRadius: '3px', width: `${pct}%`, transition: 'width 0.4s' }} />
       </div>
     </div>
   );
@@ -125,6 +142,7 @@ export default function BossPage({ refreshCharacter }) {
               </div>
 
               <HpBar remaining={quest.hpRemaining} pool={quest.hpPool} />
+              <TimeBar endsAt={quest.endsAt} durationDays={quest.durationDays} />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '10px' }}>
                 <span style={{ color: myContributedToday ? '#4caf7d' : 'var(--color-text-muted)', fontStyle: myContributedToday ? 'normal' : 'italic' }}>
