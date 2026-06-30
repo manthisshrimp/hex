@@ -26,6 +26,10 @@ pub struct TickInput {
     pub boss_damage_multiplier: f64,
     /// Gear wear applied to each equipped item on each boss-day (0 = no boss).
     pub boss_wear_per_day: u32,
+    /// Equipped armor total — mitigates the boss miss multiplier (own HP only).
+    pub boss_armor: u32,
+    /// Equipped damage total — boosts damage dealt to the boss.
+    pub boss_damage: u32,
 }
 
 pub struct DeadlineUpdate {
@@ -103,7 +107,8 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         if let Some(&deadline) = input.deadlines.get(&habit.id) {
             if deadline < date {
                 // Damage
-                let damage = miss_damage(config, &habit.importance, maturity) * input.boss_damage_multiplier;
+                let eff_mult = game::boss_effective_multiplier(input.boss_damage_multiplier, input.boss_armor);
+                let damage = miss_damage(config, &habit.importance, maturity) * eff_mult;
                 hp_delta -= damage;
                 cur_health_removed += damage;
                 health_events.push(HealthEvent {
@@ -181,9 +186,11 @@ pub fn process_tick(input: TickInput) -> TickOutput {
             });
             if completed_today { done += 1; }
         }
+        let base_p = game::daily_completion(due, done);
+        let gear_bonus = game::boss_damage_gear_bonus(input.boss_damage);
         Some(DailyContribution {
             date: date_str.clone(),
-            p: game::daily_completion(due, done),
+            p: base_p * gear_bonus,
         })
     } else {
         None
@@ -283,6 +290,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 80.0);
@@ -315,6 +323,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
 
@@ -366,6 +375,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
 
@@ -409,6 +419,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 100.0, "HP should be clamped to max_hp");
@@ -444,6 +455,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 0.0, "HP should not go below 0");
@@ -483,6 +495,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         // floor(10.0 + 12.0) = 22
@@ -523,6 +536,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
 
@@ -557,6 +571,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 80.0, "inactive habit must not deal damage");
@@ -589,6 +604,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
 
@@ -629,6 +645,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
+            boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         // floor(0.0 + passive) should be a whole number
@@ -654,13 +671,13 @@ mod tests {
             date: tick_date, habits: vec![habit.clone()], deadlines: deadlines.clone(),
             completions: completions.clone(), current_hp: 100.0, current_gold: 0.0,
             current_renown: 0.0, config: GameConfig::default(),
-            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0,
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0, boss_damage: 0,
         };
         let input_boss = TickInput {
             date: tick_date, habits: vec![habit], deadlines, completions,
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8,
+            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8, boss_armor: 0, boss_damage: 0,
         };
         let out_no = process_tick(input_no_boss);
         let out_boss = process_tick(input_boss);
@@ -682,7 +699,7 @@ mod tests {
             date: tick_date, habits: vec![habit], deadlines, completions,
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: true, boss_damage_multiplier: 1.0, boss_wear_per_day: 8,
+            boss_active: true, boss_damage_multiplier: 1.0, boss_wear_per_day: 8, boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         let contrib = out.boss_contribution.expect("contribution must be Some when boss_active");
@@ -702,7 +719,7 @@ mod tests {
             date: tick_date, habits: vec![habit], deadlines, completions: vec![],
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0,
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0, boss_damage: 0,
         };
         let out = process_tick(input);
         assert!(out.boss_contribution.is_none());

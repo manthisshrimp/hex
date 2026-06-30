@@ -12,6 +12,17 @@ use crate::game::{self, SYSTEM_HABIT_ID};
 use crate::tick::{TickInput, process_tick};
 use super::AppState;
 
+/// Sum equipped items' (damage, armor) from the catalogue. Used to feed boss
+/// gear bonuses into the tick.
+fn equipped_totals(state: &AppState) -> (u32, u32) {
+    let eq = state.store.equipment.get();
+    eq.equipped.values().fold((0u32, 0u32), |(d, a), item_id| {
+        state.catalogue.iter().find(|i| &i.id == item_id)
+            .map(|i| (d + i.damage, a + i.armor))
+            .unwrap_or((d, a))
+    })
+}
+
 /// Compute boss tick parameters for a given day.
 /// Returns (boss_active, damage_multiplier, wear_per_day).
 fn boss_tick_params(
@@ -222,6 +233,7 @@ pub async fn get_character(
                 .collect();
 
             let (boss_active, boss_mult, boss_wear) = boss_tick_params(&participating, day);
+            let (gear_damage, gear_armor) = equipped_totals(&state);
             let input = TickInput {
                 date: day,
                 habits: active_habits.clone(),
@@ -234,6 +246,8 @@ pub async fn get_character(
                 boss_active,
                 boss_damage_multiplier: boss_mult,
                 boss_wear_per_day: boss_wear,
+                boss_armor: gear_armor,
+                boss_damage: gear_damage,
             };
 
             let output = process_tick(input);
@@ -366,6 +380,7 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
     let boss_state = state.store.boss.get();
     let participating = boss_state.participating.clone();
     let (boss_active, boss_mult, boss_wear) = boss_tick_params(&participating, today);
+    let (gear_damage, gear_armor) = equipped_totals(&state);
 
     let mut current_character = state.store.character.get();
     let input = TickInput {
@@ -380,6 +395,8 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
         boss_active,
         boss_damage_multiplier: boss_mult,
         boss_wear_per_day: boss_wear,
+        boss_armor: gear_armor,
+        boss_damage: gear_damage,
     };
     let output = process_tick(input);
 

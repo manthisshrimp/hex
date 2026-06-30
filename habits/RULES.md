@@ -322,10 +322,37 @@ Because the best possible day is ≈0.96, a solo run tops out around
 finishes in time; every tougher tier survives even a maxed 10/10 solo and needs
 a party (see the table).
 
-### Extra damage
+### Extra damage (mitigated by your own armor)
 
 While a boss is active, **every miss penalty is multiplied** by the boss's
 `damage_multiplier`. No new damage source — existing misses bite harder.
+
+Your equipped **armor** shaves that bonus down (diminishing returns, floored at
+1.0× — armor never makes a boss miss cheaper than a normal miss):
+
+```
+effective_multiplier = 1 + (damage_multiplier − 1) × 100/(armor + 100)
+```
+
+Armor only protects **the player wearing it** — it never reduces damage to other
+party members. So a high-tier boss (×2.5) hits an ungeared player brutally but a
+tank in heavy plate weathers it, enabling a "tank" role for the party.
+
+### Boosting damage dealt with gear
+
+Equipped **damage** gear amplifies the damage you deal to the boss (diminishing
+returns, capped at +40%). It multiplies your effort — it never deals damage on
+its own, so a zero-completion day still deals nothing:
+
+```
+gear_bonus = 1 + 0.4 × damage/(damage + 100)
+p_final    = p(d) × gear_bonus
+```
+
+Armor and damage compete for the same equipment slots, so players choose a
+**glass-cannon** (fast kills, fragile), a **tank** (soaks the multiplier, slow),
+or a balance — and a party wants a mix. Tuned so even a maxed-damage solo still
+can't crack a greater+ boss.
 
 ### Gear degradation
 

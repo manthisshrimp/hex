@@ -266,6 +266,24 @@ pub fn daily_completion(due: u32, done: u32) -> f64 {
     effort * consistency
 }
 
+/// Effective boss miss multiplier after the wearer's own armor mitigates the
+/// bonus. Diminishing returns (K=100), floored at 1.0 — armor shaves the boss
+/// *bonus* only, never the base miss, and only helps the player wearing it.
+pub fn boss_effective_multiplier(multiplier: f64, armor: u32) -> f64 {
+    const K: f64 = 100.0;
+    let reduction = K / (armor as f64 + K); // 1.0 at 0 armor → 0 as armor → ∞
+    1.0 + (multiplier - 1.0).max(0.0) * reduction
+}
+
+/// Damage-dealt multiplier from equipped weapon/damage gear. Diminishing
+/// returns (K=100), capped at +40%. 1.0 at 0 damage, so gear amplifies effort
+/// but never deals damage on its own.
+pub fn boss_damage_gear_bonus(damage: u32) -> f64 {
+    const DMG_MAX: f64 = 0.4;
+    const K: f64 = 100.0;
+    1.0 + DMG_MAX * (damage as f64 / (damage as f64 + K))
+}
+
 
 /// Subtract `wear` from each equipped item's current durability.
 /// Missing durability entry is treated as full (`max_durability` from the item).
@@ -681,6 +699,44 @@ mod tests {
         let d2 = daily_completion(2, 2);
         let d3 = daily_completion(3, 3);
         assert!(d2 - d1 > d3 - d2);
+    }
+
+    // ── boss_effective_multiplier ─────────────────────────────────────────────
+
+    #[test]
+    fn armor_zero_keeps_full_multiplier() {
+        assert!((boss_effective_multiplier(2.5, 0) - 2.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn armor_halves_bonus_at_k() {
+        // armor == K(100): reduction 0.5 → eff = 1 + (2.5-1)*0.5 = 1.75
+        assert!((boss_effective_multiplier(2.5, 100) - 1.75).abs() < 1e-9);
+    }
+
+    #[test]
+    fn armor_floors_at_one_and_only_shaves_bonus() {
+        // Huge armor approaches 1.0 but never below.
+        let eff = boss_effective_multiplier(2.5, 100_000);
+        assert!(eff > 1.0 && eff < 1.01);
+        // No boss (mult 1.0) stays 1.0 regardless of armor.
+        assert!((boss_effective_multiplier(1.0, 200) - 1.0).abs() < 1e-9);
+    }
+
+    // ── boss_damage_gear_bonus ─────────────────────────────────────────────────
+
+    #[test]
+    fn damage_zero_is_no_bonus() {
+        assert!((boss_damage_gear_bonus(0) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn damage_bonus_diminishes_and_caps() {
+        // K=100: damage 100 → +0.4*0.5 = +0.20
+        assert!((boss_damage_gear_bonus(100) - 1.20).abs() < 1e-9);
+        // Approaches +40% but never exceeds.
+        let big = boss_damage_gear_bonus(1_000_000);
+        assert!(big < 1.4 && big > 1.39);
     }
 
     // ── apply_wear ───────────────────────────────────────────────────────────
