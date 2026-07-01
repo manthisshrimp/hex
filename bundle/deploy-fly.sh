@@ -20,7 +20,7 @@ REGION="${REGION:-ams}"
 
 # Check if the app already exists
 IS_NEW_APP=true
-if fly apps list 2>/dev/null | grep -q "^$APP_NAME\b"; then
+if fly apps list --json 2>/dev/null | grep -q "\"Name\": \"$APP_NAME\","; then
   IS_NEW_APP=false
 fi
 
