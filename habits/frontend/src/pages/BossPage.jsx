@@ -155,7 +155,10 @@ export default function BossPage({ refreshCharacter }) {
   return (
     <>
       {active && (() => {
-        const { boss, quest, myContribution, myContributedToday, gear, leaderboard, armor, damage, effMultiplier, damageBonus } = active;
+        const { boss, quest, myContribution, myContributedThrough, gear, leaderboard, armor, damage, effMultiplier, damageBonus } = active;
+        const scoredThrough = myContributedThrough
+          ? new Date(myContributedThrough + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+          : null;
         return (
           <>
             <SectionHeader>BOSS QUEST</SectionHeader>
@@ -170,8 +173,8 @@ export default function BossPage({ refreshCharacter }) {
               <TimeBar endsAt={quest.endsAt} durationDays={quest.durationDays} />
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '10px' }}>
-                <span style={{ color: myContributedToday ? '#4caf7d' : 'var(--color-text-muted)', fontStyle: myContributedToday ? 'normal' : 'italic' }}>
-                  {myContributedToday ? '✓ Advanced today' : 'Not advanced today'}
+                <span style={{ color: scoredThrough ? '#4caf7d' : 'var(--color-text-muted)', fontStyle: scoredThrough ? 'normal' : 'italic' }}>
+                  {scoredThrough ? `✓ Scored through ${scoredThrough}` : 'No days scored yet'}
                 </span>
                 <span style={{ color: 'var(--color-text-muted)' }}>
                   Damage dealt: <span style={{ color: 'var(--color-text)' }}>{dmg(myContribution)}</span>

@@ -451,7 +451,9 @@ pub async fn get_boss(
                 .and_then(|q| q.contributions.get(&my_name))
                 .map(|c| c.total)
                 .unwrap_or(0.0);
-            let my_contributed_today = p.last_contributed_date == today_str;
+            // The boss lags a day: today's habits aren't final until tomorrow, so
+            // we report the last fully-scored day rather than a same-day flag.
+            let my_contributed_through = p.last_contributed_date.clone();
 
             // Gear (equipped items with durability)
             let eq = state.store.equipment.get();
@@ -494,7 +496,7 @@ pub async fn get_boss(
                 "boss": boss_def.as_ref().map(|d| boss_def_to_json(d, &state.catalogue)),
                 "quest": quest,
                 "myContribution": my_contribution,
-                "myContributedToday": my_contributed_today,
+                "myContributedThrough": my_contributed_through,
                 "gear": gear,
                 "armor": gear_armor,
                 "damage": gear_damage,

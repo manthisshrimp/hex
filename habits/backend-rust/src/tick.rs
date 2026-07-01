@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use chrono::NaiveDate;
 use uuid::Uuid;
 
-use crate::models::{Completion, DailyContribution, GoldEvent, Habit, HealthEvent};
+use crate::models::{Completion, GoldEvent, Habit, HealthEvent};
 use crate::game::{self, GameConfig, miss_damage, passive_gold};
 
 // ── TickInput / TickOutput ────────────────────────────────────────────────────
@@ -28,8 +28,6 @@ pub struct TickInput {
     pub boss_wear_per_day: u32,
     /// Equipped armor total — mitigates the boss miss multiplier (own HP only).
     pub boss_armor: u32,
-    /// Equipped damage total — boosts damage dealt to the boss.
-    pub boss_damage: u32,
 }
 
 pub struct DeadlineUpdate {
@@ -57,8 +55,6 @@ pub struct TickOutput {
     pub deadline_updates: Vec<DeadlineUpdate>,
     /// Updated health_removed values to write back to each habit.
     pub habit_health_updates: Vec<HabitHealthUpdate>,
-    /// Boss contribution for this day (Some only when boss_active is true).
-    pub boss_contribution: Option<DailyContribution>,
     /// Total gear wear to apply this tick (boss_wear_per_day when boss_active).
     pub gear_wear: u32,
 }
@@ -175,28 +171,6 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         });
     }
 
-    // ── Boss contribution ────────────────────────────────────────────────────
-    let boss_contribution = if input.boss_active {
-        let mut due = 0u32;
-        let mut done = 0u32;
-        for habit in &input.habits {
-            if !habit.active || habit.inscribed { continue; }
-            due += 1;
-            let completed_today = input.completions.iter().any(|c| {
-                c.habit_id == habit.id
-                    && game::parse_iso_date(&c.completed_at) == Some(date)
-            });
-            if completed_today { done += 1; }
-        }
-        let base_p = game::daily_completion(due, done);
-        let gear_bonus = game::boss_damage_gear_bonus(input.boss_damage);
-        Some(DailyContribution {
-            date: date_str.clone(),
-            p: base_p * gear_bonus,
-        })
-    } else {
-        None
-    };
     // Gear only wears on boss-days where you actually took a hit (missed a
     // habit). A flawless day costs no durability — so a confident player has no
     // reason to strip gear, and wear is tied to failure.
@@ -215,7 +189,6 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         gold_events,
         deadline_updates,
         habit_health_updates,
-        boss_contribution,
         gear_wear,
     }
 }
@@ -295,7 +268,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 80.0);
@@ -328,7 +301,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
 
@@ -380,7 +353,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
 
@@ -424,7 +397,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 100.0, "HP should be clamped to max_hp");
@@ -460,7 +433,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 0.0, "HP should not go below 0");
@@ -500,7 +473,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
         // floor(10.0 + 12.0) = 22
@@ -541,7 +514,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
 
@@ -576,7 +549,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.new_hp, 80.0, "inactive habit must not deal damage");
@@ -609,7 +582,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
 
@@ -650,7 +623,7 @@ mod tests {
             boss_active: false,
             boss_damage_multiplier: 1.0,
             boss_wear_per_day: 0,
-            boss_armor: 0, boss_damage: 0,
+            boss_armor: 0,
         };
         let out = process_tick(input);
         // floor(0.0 + passive) should be a whole number
@@ -676,13 +649,13 @@ mod tests {
             date: tick_date, habits: vec![habit.clone()], deadlines: deadlines.clone(),
             completions: completions.clone(), current_hp: 100.0, current_gold: 0.0,
             current_renown: 0.0, config: GameConfig::default(),
-            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0, boss_damage: 0,
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0,
         };
         let input_boss = TickInput {
             date: tick_date, habits: vec![habit], deadlines, completions,
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8, boss_armor: 0, boss_damage: 0,
+            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8, boss_armor: 0,
         };
         let out_no = process_tick(input_no_boss);
         let out_boss = process_tick(input_boss);
@@ -691,7 +664,7 @@ mod tests {
     }
 
     #[test]
-    fn boss_contribution_computed_when_active() {
+    fn flawless_boss_day_does_not_wear_gear() {
         let tick_date = date("2026-04-25");
         let deadline = date("2026-04-26");
         let habit = make_daily_habit("h1", "Read", Importance::Low);
@@ -704,13 +677,9 @@ mod tests {
             date: tick_date, habits: vec![habit], deadlines, completions,
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: true, boss_damage_multiplier: 1.0, boss_wear_per_day: 8, boss_armor: 0, boss_damage: 0,
+            boss_active: true, boss_damage_multiplier: 1.0, boss_wear_per_day: 8, boss_armor: 0,
         };
         let out = process_tick(input);
-        let contrib = out.boss_contribution.expect("contribution must be Some when boss_active");
-        assert_eq!(contrib.date, "2026-04-25");
-        // 1/1 perfect = tanh(1/5) × 1.0 ≈ 0.197 (effort ramp, not full credit).
-        assert!((contrib.p - 0.1974).abs() < 1e-3, "1/1 → p ≈ 0.197, got {}", contrib.p);
         // Habit completed, deadline not missed → no miss damage → no wear.
         assert_eq!(out.gear_wear, 0, "flawless boss-day should not wear gear");
     }
@@ -726,26 +695,26 @@ mod tests {
             date: tick_date, habits: vec![habit], deadlines, completions: vec![],
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8, boss_armor: 0, boss_damage: 0,
+            boss_active: true, boss_damage_multiplier: 1.5, boss_wear_per_day: 8, boss_armor: 0,
         };
         let out = process_tick(input);
         assert_eq!(out.gear_wear, 8, "a missed boss-day should wear gear");
     }
 
     #[test]
-    fn no_boss_contribution_when_inactive() {
+    fn no_gear_wear_when_boss_inactive() {
         let tick_date = date("2026-04-25");
         let habit = make_daily_habit("h1", "Read", Importance::Low);
         let mut deadlines = HashMap::new();
-        deadlines.insert("h1".to_string(), date("2026-04-26"));
+        // Missed deadline → miss damage, but no boss → still no wear.
+        deadlines.insert("h1".to_string(), date("2026-04-24"));
         let input = TickInput {
             date: tick_date, habits: vec![habit], deadlines, completions: vec![],
             current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
             config: GameConfig::default(),
-            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0, boss_damage: 0,
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0,
         };
         let out = process_tick(input);
-        assert!(out.boss_contribution.is_none());
         assert_eq!(out.gear_wear, 0);
     }
 }
