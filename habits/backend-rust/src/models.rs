@@ -487,8 +487,9 @@ pub struct ParticipantRequest {
 #[serde(rename_all = "camelCase")]
 pub struct ContributeRequest {
     pub name: String,
-    pub date: String,
-    pub p: f64,
+    /// Absolute derived total for this member (not a per-day delta), so the host
+    /// can set it idempotently and recompute HP from the sum of all members.
+    pub total: f64,
 }
 
 #[cfg(test)]

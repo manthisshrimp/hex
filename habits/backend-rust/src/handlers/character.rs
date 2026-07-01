@@ -7,7 +7,7 @@ use serde::Deserialize;
 use reqwest::Client;
 
 use crate::error::AppError;
-use crate::models::{Character, CharacterResponse, CheckinHabit, Completion, DailyContribution, GoldEvent, HealthEvent, HostedQuest, Importance, MemberContribution};
+use crate::models::{Character, CharacterResponse, CheckinHabit, Completion, GoldEvent, Importance};
 use crate::game::{self, SYSTEM_HABIT_ID};
 use crate::tick::{TickInput, process_tick};
 use super::AppState;
@@ -44,122 +44,39 @@ fn boss_tick_params(
     (true, multiplier, wear)
 }
 
-/// Apply gear wear from a boss-day and submit/queue the daily contribution.
-/// Best-effort: errors are swallowed so they don't interrupt the character tick.
-async fn apply_boss_outputs(
-    state: &AppState,
-    gear_wear: u32,
-    contribution: Option<DailyContribution>,
-) {
-    if gear_wear > 0 {
-        let eq = state.store.equipment.get();
-        let (new_eq, broken) = game::apply_wear(&eq, gear_wear, &state.catalogue);
-        let _ = state.store.equipment.save(new_eq).await;
-        if !broken.is_empty() {
-            let mut bs = state.store.boss.get();
-            if let Some(ref mut p) = bs.participating {
-                p.broken_gear.extend(broken);
-            }
-            let _ = state.store.boss.save(bs).await;
-        }
-    }
-
-    let Some(contrib) = contribution else { return; };
-    let mut bs = state.store.boss.get();
-    let Some(ref p) = bs.participating.clone() else { return; };
-
-    // Idempotency: skip if already contributed for this date.
-    if !p.last_contributed_date.is_empty() && contrib.date <= p.last_contributed_date {
-        return;
-    }
-
-    let my_name = crate::handlers::boss::my_name(state);
-
-    if p.is_host {
-        // Self-hosted: apply directly to hosted quest.
-        if let Some(ref mut hosted) = bs.hosted {
-            let today_str = game::today_str();
-            let entry = hosted.contributions
-                .entry(my_name.clone())
-                .or_insert(MemberContribution { last_date: String::new(), total: 0.0 });
-            if contrib.date > entry.last_date {
-                hosted.hp_remaining -= contrib.p;
-                entry.total += contrib.p;
-                entry.last_date = contrib.date.clone();
-            }
-            if hosted.hp_remaining <= 0.0 && hosted.status == "active" {
-                hosted.status = "ended".to_string();
-                hosted.ended_at = Some(today_str);
-            }
-        }
-        if let Some(ref mut part) = bs.participating {
-            part.last_contributed_date = contrib.date.clone();
-        }
-        let _ = state.store.boss.save(bs).await;
-    } else {
-        // POST to host.
-        let host_contribute_url = format!(
-            "{}/habits/api/boss/contribute",
-            p.host_url.trim_end_matches('/')
-        );
-        let client = Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap_or_else(|_| Client::new());
-        let payload = serde_json::json!({
-            "name": my_name,
-            "date": contrib.date,
-            "p": contrib.p,
-        });
-        let ok = client.post(&host_contribute_url)
-            .json(&payload)
-            .send()
-            .await
-            .map(|r| r.status().is_success())
-            .unwrap_or(false);
-
-        if ok {
-            if let Some(ref mut part) = bs.participating {
-                part.last_contributed_date = contrib.date.clone();
-                part.outbox.retain(|o| o.date != contrib.date);
-            }
-        } else {
-            // Queue for retry.
-            if let Some(ref mut part) = bs.participating {
-                if !part.outbox.iter().any(|o| o.date == contrib.date) {
-                    part.outbox.push(contrib);
-                }
-            }
+/// Apply gear wear from a boss-day. Best-effort: errors are swallowed so they
+/// don't interrupt the character tick.
+async fn apply_boss_outputs(state: &AppState, gear_wear: u32) {
+    if gear_wear == 0 { return; }
+    let eq = state.store.equipment.get();
+    let (new_eq, broken) = game::apply_wear(&eq, gear_wear, &state.catalogue);
+    let _ = state.store.equipment.save(new_eq).await;
+    if !broken.is_empty() {
+        let mut bs = state.store.boss.get();
+        if let Some(ref mut p) = bs.participating {
+            p.broken_gear.extend(broken);
         }
         let _ = state.store.boss.save(bs).await;
     }
 }
 
-/// Score boss contributions for every fully-elapsed day the player hasn't been
-/// credited for yet. Driven by `last_contributed_date` (its own cursor,
-/// independent of the HP tick) so it can lag a day behind and only ever count a
-/// day whose completions are final — never today's in-progress work.
+/// Recompute this player's boss damage from scratch and publish it.
 ///
-/// This is the fix for "boss advanced but no damage": the old code scored the
-/// current day inside the tick, before the day's habits were done, then locked
-/// that day so the real completions never counted.
-async fn catch_up_boss(state: &AppState, today: NaiveDate) {
+/// The total is DERIVED: the sum of every boss-day's score from the start
+/// through today (today's in-progress completions included). Because it is
+/// recomputed and *set* (not accumulated), it is fully idempotent — it updates
+/// live as you complete today's habits, backfills days the old code lost, and
+/// self-heals if a completion is undone. HP is `pool − Σ member totals`.
+///
+/// This replaces the old lock-once-per-day scoring, which never counted the
+/// day's real work (see the "boss advanced but no damage" bug).
+pub(crate) async fn sync_boss_contribution(state: &AppState, today: NaiveDate) {
     let bs = state.store.boss.get();
     let Some(p) = bs.participating.clone() else { return; };
     if p.outcome.is_some() { return; }
 
     let Some(started) = game::parse_iso_date(&p.started_at) else { return; };
     let ends = game::parse_iso_date(&p.ends_at).unwrap_or(today);
-
-    // Resume the day after the last scored one; if none scored yet, at the start.
-    let mut day = if p.last_contributed_date.is_empty() {
-        started
-    } else {
-        match game::parse_iso_date(&p.last_contributed_date) {
-            Some(d) => d + chrono::Duration::days(1),
-            None => started,
-        }
-    };
 
     let all_habits = state.store.habits.get_all();
     // Real habits only — the auto "open the app" system habit doesn't count
@@ -171,18 +88,59 @@ async fn catch_up_boss(state: &AppState, today: NaiveDate) {
     let (gear_damage, _) = equipped_totals(state);
     let gear_bonus = game::boss_damage_gear_bonus(gear_damage);
 
-    // Only score strictly-past days within the quest window.
-    while day < today && day < ends {
-        if day >= started {
-            let date_str = day.format("%Y-%m-%d").to_string();
-            let due = habits.len() as u32;
-            let done = habits.iter().filter(|h| completions.iter().any(|c| {
-                c.habit_id == h.id && c.completed_at.get(..10).unwrap_or("") == date_str
-            })).count() as u32;
-            let p_val = game::daily_completion(due, done) * gear_bonus;
-            apply_boss_outputs(state, 0, Some(DailyContribution { date: date_str, p: p_val })).await;
-        }
+    // Sum daily scores across the active window [started, ends), through today.
+    let mut my_total = 0.0;
+    let mut scored_through = String::new();
+    let mut day = started;
+    while day <= today && day < ends {
+        let date_str = day.format("%Y-%m-%d").to_string();
+        let due = habits.len() as u32;
+        let done = habits.iter().filter(|h| completions.iter().any(|c| {
+            c.habit_id == h.id && c.completed_at.get(..10).unwrap_or("") == date_str
+        })).count() as u32;
+        my_total += game::daily_completion(due, done) * gear_bonus;
+        scored_through = date_str;
         day += chrono::Duration::days(1);
+    }
+
+    let my_name = crate::handlers::boss::my_name(state);
+
+    if p.is_host {
+        let mut bs = state.store.boss.get();
+        if let Some(ref mut hosted) = bs.hosted {
+            let mc = hosted.contributions.entry(my_name).or_default();
+            mc.total = my_total;
+            mc.last_date = scored_through.clone();
+            let spent: f64 = hosted.contributions.values().map(|c| c.total).sum();
+            hosted.hp_remaining = hosted.hp_pool - spent;
+            if hosted.hp_remaining <= 0.0 && hosted.status == "active" {
+                hosted.status = "ended".to_string();
+                hosted.ended_at = Some(game::today_str());
+            }
+        }
+        if let Some(ref mut part) = bs.participating {
+            part.last_contributed_date = scored_through;
+        }
+        let _ = state.store.boss.save(bs).await;
+    } else {
+        // Publish our absolute total to the host; it recomputes HP from the sum.
+        let url = format!("{}/habits/api/boss/contribute", p.host_url.trim_end_matches('/'));
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+        let ok = client.post(&url)
+            .json(&serde_json::json!({ "name": my_name, "total": my_total }))
+            .send().await
+            .map(|r| r.status().is_success())
+            .unwrap_or(false);
+        if ok {
+            let mut bs = state.store.boss.get();
+            if let Some(ref mut part) = bs.participating {
+                part.last_contributed_date = scored_through;
+            }
+            let _ = state.store.boss.save(bs).await;
+        }
     }
 }
 
@@ -324,28 +282,17 @@ pub async fn get_character(
             current_character.gold = output.new_gold;
             current_character.renown = output.new_renown;
             current_character.last_tick_date = day.format("%Y-%m-%d").to_string();
-            // Boss contributions are handled separately (see catch_up_boss) so
-            // they only score fully-elapsed days; the tick just applies gear wear.
-            apply_boss_outputs(&state, output.gear_wear, None).await;
+            // Boss damage is derived separately (see sync_boss_contribution);
+            // the tick just applies gear wear.
+            apply_boss_outputs(&state, output.gear_wear).await;
             day += chrono::Duration::days(1);
         }
 
         state.store.character.save(current_character).await?;
-
-        // Retry any queued boss contributions that failed during earlier ticks.
-        {
-            let bs = state.store.boss.get();
-            let pending: Vec<DailyContribution> = bs.participating.as_ref()
-                .map(|p| p.outbox.clone())
-                .unwrap_or_default();
-            for contrib in pending {
-                apply_boss_outputs(&state, 0, Some(contrib)).await;
-            }
-        }
     }
 
-    // Score the boss for any fully-elapsed days now that completions are final.
-    catch_up_boss(&state, today).await;
+    // Recompute boss damage from all completions (today's included, live).
+    sync_boss_contribution(&state, today).await;
 
     // ── Step 3: Check if today's tick is pending and needs check-in ─────────────
     let character = state.store.character.get();
@@ -472,9 +419,7 @@ async fn run_today_tick(state: &AppState, today: NaiveDate) -> Result<(), AppErr
     current_character.gold = output.new_gold;
     current_character.renown = output.new_renown;
     current_character.last_tick_date = today.format("%Y-%m-%d").to_string();
-    // Today's boss contribution is deferred: today isn't over, so its
-    // completions aren't final. catch_up_boss scores it once tomorrow.
-    apply_boss_outputs(state, output.gear_wear, None).await;
+    apply_boss_outputs(state, output.gear_wear).await;
     state.store.character.save(current_character).await?;
     Ok(())
 }
@@ -515,8 +460,8 @@ pub async fn checkin(
     // Now run today's tick with the confirmed completions in place.
     run_today_tick(&state, today).await?;
 
-    // Check-in just finalised yesterday's completions — score the boss for it.
-    catch_up_boss(&state, today).await;
+    // Recompute boss damage with the freshly confirmed completions.
+    sync_boss_contribution(&state, today).await;
 
     let character = state.store.character.get();
     let eq = state.store.equipment.get();

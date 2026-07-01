@@ -110,24 +110,18 @@ pub async fn post_contribute(
     }
 
     let name = body.name.trim().to_string();
+    let today_str = game::today_str();
 
-    let contrib = hosted.contributions.get_mut(&name)
-        .ok_or_else(|| AppError::Validation("Not a participant".to_string()))?;
+    // Absolute total (derived on the member's node), set idempotently. HP is
+    // always recomputed from the sum of every member's total.
+    let mc = hosted.contributions.entry(name).or_default();
+    mc.total = body.total;
+    mc.last_date = today_str.clone();
 
-    // Idempotent: same or earlier date → no-op, return current state
-    if !contrib.last_date.is_empty() && body.date.as_str() <= contrib.last_date.as_str() {
-        return Ok(Json(json!({
-            "hpRemaining": hosted.hp_remaining,
-            "status": hosted.status,
-        })));
-    }
-
-    contrib.total += body.p;
-    contrib.last_date = body.date.clone();
-    hosted.hp_remaining -= body.p;
+    let spent: f64 = hosted.contributions.values().map(|c| c.total).sum();
+    hosted.hp_remaining = hosted.hp_pool - spent;
 
     // Check win/time-out
-    let today_str = game::today_str();
     if hosted.hp_remaining <= 0.0 || today_str.as_str() >= hosted.ends_at.as_str() {
         hosted.status = "ended".to_string();
         hosted.ended_at = Some(today_str);
@@ -350,26 +344,11 @@ pub async fn get_boss(
         let _ = state.store.boss.save(boss.clone()).await;
     }
 
-    // ── 1. Flush outbox ───────────────────────────────────────────────────────
-    if let Some(ref mut p) = boss.participating {
-        if p.outcome.is_none() && !p.outbox.is_empty() {
-            let host_url = p.host_url.clone();
-            let my_name = my_name(&state);
-            let contribute_url = habits_url(&host_url, "/api/boss/contribute");
-            let mut flushed = vec![];
-            for entry in &p.outbox {
-                let ok = client
-                    .post(&contribute_url)
-                    .json(&json!({ "name": my_name, "date": entry.date, "p": entry.p }))
-                    .send()
-                    .await
-                    .map(|r| r.status().is_success())
-                    .unwrap_or(false);
-                if ok { flushed.push(entry.date.clone()); }
-            }
-            p.outbox.retain(|e| !flushed.contains(&e.date));
-        }
-    }
+    // ── 1. Recompute + publish our derived damage (today's work included) ─────
+    // Keeps the boss live when the player is on the Boss tab without hitting the
+    // character endpoint. Reload afterwards since it mutates the stored state.
+    crate::handlers::character::sync_boss_contribution(&state, game::today()).await;
+    let mut boss = state.store.boss.get();
 
     // ── 2. Resolve end state ──────────────────────────────────────────────────
     if let Some(ref mut p) = boss.participating {
@@ -633,16 +612,27 @@ fn boss_def_to_json(def: &BossDef, catalogue: &[crate::models::Item]) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::collections::HashMap;
 
+    // HP is always pool − Σ member totals. Because totals are absolute (set, not
+    // accumulated), re-publishing the same total is idempotent and a larger
+    // total only lowers HP further.
     #[test]
-    fn contribute_idempotency_logic() {
-        // Simulate the idempotency check: same date should not apply twice.
-        let last_date = "2026-07-01";
-        let incoming_date = "2026-07-01";
-        // incoming_date <= last_date → no-op
-        assert!(incoming_date <= last_date);
-        let incoming_date2 = "2026-07-02";
-        assert!(incoming_date2 > last_date);
+    fn hp_is_pool_minus_sum_of_totals() {
+        let pool = 2.3_f64;
+        let mut totals: HashMap<&str, f64> = HashMap::new();
+
+        totals.insert("a", 1.0);
+        let hp1 = pool - totals.values().sum::<f64>();
+
+        totals.insert("a", 1.0); // same value again → no change
+        let hp2 = pool - totals.values().sum::<f64>();
+        assert_eq!(hp1, hp2, "re-publishing the same total must be idempotent");
+
+        totals.insert("a", 1.5);
+        totals.insert("b", 0.5);
+        let hp3 = pool - totals.values().sum::<f64>();
+        assert!((hp3 - 0.3).abs() < 1e-9);
+        assert!(hp3 < hp1, "more damage → less HP");
     }
 }

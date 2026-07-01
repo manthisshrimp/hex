@@ -298,9 +298,13 @@ host:
   advantage.
 - Victory when `hp_remaining ≤ 0` before `ends_at`.
 
-Each day, every participant's **daily damage** `p(d)` is reported to the host,
-which subtracts it from `hp_remaining`. It combines **consistency** and
-**effort** so both matter:
+Each participant's **total damage** is *derived*: the sum of their daily damage
+`p(d)` over every boss-day from the start through today (today's in-progress
+completions included). Each member publishes this absolute total to the host,
+which sets it and recomputes `hp_remaining = hp_pool − Σ member totals`. Because
+it is recomputed and set (not accumulated), scoring is idempotent — it updates
+live as you complete today's habits and self-heals if a completion is undone.
+Daily damage combines **consistency** and **effort** so both matter:
 
 ```
 consistency = done(d) / due(d)        (clamped to 1)
@@ -308,7 +312,8 @@ effort      = tanh(done(d) / 5)        (concave ramp, saturates near 5)
 p(d)        = effort × consistency     ∈ [0, 1)
 ```
 
-- `due(d)` = active non-inscribed habits (all habits count every day).
+- `due(d)` = active non-inscribed habits, **excluding** the automatic "open the
+  app" system habit (only real habits count toward the boss).
 - `done(d)` = habits with a completion on day `d`.
 - **Rest day** (nothing due) → `p = 0`: no work, no damage. A perfect 9/10 must
   out-damage an idle day.
