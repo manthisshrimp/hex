@@ -266,6 +266,26 @@ pub fn daily_completion(due: u32, done: u32) -> f64 {
     effort * consistency
 }
 
+/// Whether a habit is *scheduled* on `day` by its regular cadence — used as the
+/// boss's `due` signal so a weekly habit doesn't count as "due" every day.
+///
+/// - Daily habits: every day.
+/// - Windowed habits with `show_on_days`: only on those weekdays (JS `getDay()`
+///   convention, 0=Sun … 6=Sat).
+/// - Flexible windowed habits (no `show_on_days`): not tied to a weekday, so
+///   they're never "scheduled" on a particular day. The boss counts them only
+///   on days they're actually completed (bonus effort, no idle-day penalty).
+pub fn boss_scheduled_on(habit: &crate::models::Habit, day: NaiveDate) -> bool {
+    if habit.frequency == "daily" { return true; }
+    match &habit.show_on_days {
+        Some(days) if !days.is_empty() => {
+            let dow = day.weekday().num_days_from_sunday() as u8;
+            days.contains(&dow)
+        }
+        _ => false,
+    }
+}
+
 /// Effective boss miss multiplier after the wearer's own armor mitigates the
 /// bonus. Diminishing returns (K=100), floored at 1.0 — armor shaves the boss
 /// *bonus* only, never the base miss, and only helps the player wearing it.
@@ -334,6 +354,30 @@ mod tests {
 
     fn date(s: &str) -> NaiveDate {
         NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
+    }
+
+    fn sched_habit(frequency: &str, show_on_days: Option<Vec<u8>>) -> Habit {
+        Habit {
+            id: "h".to_string(), name: "h".to_string(), importance: Importance::Low,
+            frequency: frequency.to_string(), window_days: 7, active: true, system: false,
+            created_at: "2020-01-01T00:00:00Z".to_string(), position: 0, notes: None,
+            show_on_days, inscribed: false, inscribed_at: None, health_removed: 0.0,
+        }
+    }
+
+    #[test]
+    fn boss_scheduled_on_cadence() {
+        let day = date("2026-06-30");
+        let dow = day.weekday().num_days_from_sunday() as u8; // JS getDay for this day
+        let other = (dow + 1) % 7;
+
+        // Daily habits are scheduled every day.
+        assert!(boss_scheduled_on(&sched_habit("daily", None), day));
+        // Windowed + show_on_days: only on matching weekday.
+        assert!(boss_scheduled_on(&sched_habit("windowed", Some(vec![dow])), day));
+        assert!(!boss_scheduled_on(&sched_habit("windowed", Some(vec![other])), day));
+        // Flexible windowed (no show_on_days): never scheduled on a given day.
+        assert!(!boss_scheduled_on(&sched_habit("windowed", None), day));
     }
 
     fn completion(habit_id: &str, date_str: &str) -> Completion {

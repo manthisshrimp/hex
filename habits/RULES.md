@@ -312,8 +312,11 @@ effort      = tanh(done(d) / 5)        (concave ramp, saturates near 5)
 p(d)        = effort × consistency     ∈ [0, 1)
 ```
 
-- `due(d)` = active non-inscribed habits, **excluding** the automatic "open the
-  app" system habit (only real habits count toward the boss).
+- `due(d)` = habits actually **scheduled** on day `d` (daily habits every day;
+  windowed habits only on their `show_on_days` weekdays), plus any flexible
+  windowed habit you completed that day. Excludes the automatic "open the app"
+  system habit. A weekly habit never counts as "due" on a day it isn't
+  scheduled, so it only ever helps — it can't drag consistency down.
 - `done(d)` = habits with a completion on day `d`.
 - **Rest day** (nothing due) → `p = 0`: no work, no damage. A perfect 9/10 must
   out-damage an idle day.

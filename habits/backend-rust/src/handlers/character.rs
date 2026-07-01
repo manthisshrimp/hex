@@ -94,10 +94,19 @@ pub(crate) async fn sync_boss_contribution(state: &AppState, today: NaiveDate) {
     let mut day = started;
     while day <= today && day < ends {
         let date_str = day.format("%Y-%m-%d").to_string();
-        let due = habits.len() as u32;
-        let done = habits.iter().filter(|h| completions.iter().any(|c| {
-            c.habit_id == h.id && c.completed_at.get(..10).unwrap_or("") == date_str
-        })).count() as u32;
+        // due = habits scheduled that day, plus any flexible habit actually done
+        // (so weekly/biweekly habits don't count as "due" on days they aren't
+        // scheduled — they only ever help, never penalise).
+        let mut due = 0u32;
+        let mut done = 0u32;
+        for h in &habits {
+            let hb: &crate::models::Habit = h;
+            let done_today = completions.iter().any(|c| {
+                c.habit_id == hb.id && c.completed_at.get(..10).unwrap_or("") == date_str
+            });
+            if done_today { done += 1; }
+            if game::boss_scheduled_on(hb, day) || done_today { due += 1; }
+        }
         my_total += game::daily_completion(due, done) * gear_bonus;
         scored_through = date_str;
         day += chrono::Duration::days(1);
