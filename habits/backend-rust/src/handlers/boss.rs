@@ -351,17 +351,24 @@ pub async fn get_boss(
     let mut boss = state.store.boss.get();
 
     // ── 2. Resolve end state ──────────────────────────────────────────────────
+    // The host is authoritative for its own quest — mirror `hosted` rather than
+    // self-polling localhost (which isn't reachable in the bundle). Non-hosts
+    // poll the remote host for fresh state.
+    let hosted_snapshot = boss.hosted.clone();
     if let Some(ref mut p) = boss.participating {
         if p.outcome.is_none() {
             let host_url = p.host_url.clone();
             let boss_id = p.boss_id.clone();
             let ends_at = p.ends_at.clone();
 
-            // Poll host for fresh state
-            let active_url = habits_url(&host_url, "/api/boss/active");
-            if let Ok(resp) = client.get(&active_url).send().await {
-                if let Ok(hq) = resp.json::<Option<HostedQuest>>().await {
-                    p.cached_state = hq.clone().or(p.cached_state.clone());
+            if p.is_host {
+                p.cached_state = hosted_snapshot.or(p.cached_state.clone());
+            } else {
+                let active_url = habits_url(&host_url, "/api/boss/active");
+                if let Ok(resp) = client.get(&active_url).send().await {
+                    if let Ok(hq) = resp.json::<Option<HostedQuest>>().await {
+                        p.cached_state = hq.clone().or(p.cached_state.clone());
+                    }
                 }
             }
 
