@@ -131,19 +131,14 @@ pub fn passive_gold(config: &GameConfig, importance: &Importance, consistency: f
     config.passive_gold_base * importance_weight(config, importance) * consistency * consistency
 }
 
-/// Whether a windowed habit is in an OPEN, UNMET completion window on `as_of` —
-/// i.e. it has not been completed within the trailing `window_days` days. A
-/// completion on day C advances the deadline to C + window_days, so the habit
-/// is "met" (resting) while a completion sits in `(as_of - window_days, as_of]`.
-/// Once the most recent completion ages past the window a fresh window opens and
-/// upkeep (passive gold / healing) resumes. Daily habits never rest — callers
-/// gate on `frequency == "windowed"` before consulting this.
-pub fn windowed_unmet(completions: &[Completion], as_of: NaiveDate, window_days: u32) -> bool {
-    let window_open = as_of - chrono::Duration::days(window_days as i64);
-    !completions.iter().any(|c| {
-        parse_iso_date(&c.completed_at)
-            .map(|d| d > window_open && d <= as_of)
-            .unwrap_or(false)
+/// Whether `habit_id` has a completion dated `day` — the same day-attribution
+/// the boss battle record uses for `done(d)`. Single source of truth for
+/// "was this habit completed on this day", shared by boss scoring and windowed
+/// upkeep gating.
+pub fn completed_on(completions: &[Completion], habit_id: &str, day: NaiveDate) -> bool {
+    let day_str = day.format("%Y-%m-%d").to_string();
+    completions.iter().any(|c| {
+        c.habit_id == habit_id && c.completed_at.get(..10).unwrap_or("") == day_str
     })
 }
 
@@ -560,19 +555,15 @@ mod tests {
         assert!((passive_gold(&cfg(), &Importance::High, 1.0) - 24.0).abs() < 1e-9);
     }
 
-    // ── windowed_unmet ───────────────────────────────────────────────────────
+    // ── completed_on ─────────────────────────────────────────────────────────
 
     #[test]
-    fn windowed_unmet_tracks_open_window() {
-        let win = 7;
-        let comps = vec![completion("h", "2026-07-01")];
-        // Within the trailing 7 days of the completion → met (resting).
-        assert!(!windowed_unmet(&comps, date("2026-07-03"), win));
-        assert!(!windowed_unmet(&comps, date("2026-07-07"), win));
-        // Deadline day (C + window_days): completion no longer covers → open again.
-        assert!(windowed_unmet(&comps, date("2026-07-08"), win));
-        // Never completed → always an open obligation.
-        assert!(windowed_unmet(&[], date("2026-07-08"), win));
+    fn completed_on_matches_completion_day() {
+        let comps = vec![completion("h", "2026-07-01"), completion("other", "2026-07-02")];
+        assert!(completed_on(&comps, "h", date("2026-07-01")));
+        assert!(!completed_on(&comps, "h", date("2026-07-02"))); // different day
+        assert!(!completed_on(&comps, "h", date("2026-07-03"))); // no completion
+        assert!(!completed_on(&comps, "missing", date("2026-07-01"))); // different habit
     }
 
     // ── daily_heal ───────────────────────────────────────────────────────────

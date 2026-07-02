@@ -129,9 +129,10 @@ pub async fn list_habits(
         let completion_gold = if forsaken { 0.0 } else {
             game::completion_gold(&state.config, &habit.importance, &habit_completions, today)
         };
-        // Windowed habits only earn upkeep while their window is open and unmet.
+        // Windowed habits earn upkeep on the days they're completed (matching the
+        // boss battle record's done(d) attribution).
         let earns_upkeep = habit.frequency != "windowed"
-            || game::windowed_unmet(&habit_completions, today, habit.window_days);
+            || game::completed_on(&habit_completions, &habit.id, today);
         let passive_gold = if earns_upkeep {
             game::passive_gold(&state.config, &habit.importance, consistency)
         } else {

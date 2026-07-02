@@ -101,9 +101,7 @@ pub(crate) async fn sync_boss_contribution(state: &AppState, today: NaiveDate) {
         let mut done = 0u32;
         for h in &habits {
             let hb: &crate::models::Habit = h;
-            let done_today = completions.iter().any(|c| {
-                c.habit_id == hb.id && c.completed_at.get(..10).unwrap_or("") == date_str
-            });
+            let done_today = game::completed_on(&completions, &hb.id, day);
             if done_today { done += 1; }
             if game::boss_scheduled_on(hb, day) || done_today { due += 1; }
         }
