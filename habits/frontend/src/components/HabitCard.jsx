@@ -97,6 +97,7 @@ export default function HabitCard({
   currentGold,
   completionGold,
   passiveGold,
+  dailyHeal,
   healing,
   streak,
   onComplete,
@@ -235,7 +236,7 @@ export default function HabitCard({
           <div className="habit-mastery-row">
             <StatBar value={consistency} color={IMP_COLOR[habit.importance]} label="Mastery" />
             {healing
-              ? <span className="habit-meta-heal">♥ {fmtNum(passiveGold ?? 0, 1)}/day</span>
+              ? <span className="habit-meta-heal">♥ {fmtNum(dailyHeal ?? 0, 1)}/day</span>
               : <span className="habit-meta-gold">⚜ {fmtNum(passiveGold ?? 0, 1)}/day</span>
             }
           </div>
@@ -296,6 +297,7 @@ export default function HabitCard({
               ['hp debt',      `−${fmtNum(habit.healthRemoved ?? 0, 1)}`, true],
               ['mastery',      `${((consistency ?? 0) * 100).toFixed(1)}%`, false],
               ['passive/day',  `⚜ ${fmtNum(passiveGold ?? 0, 2)}`, false],
+              ['heal/day',     `♥ ${fmtNum(dailyHeal ?? 0, 2)}`, false],
               ['completion',   `⚜ ~${fmtNum(Math.floor(completionGold ?? 0))}`, false],
               ['streak',       streak ?? 0, false],
               ['deadline',     nextDeadline ?? '—', false],

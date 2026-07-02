@@ -131,6 +131,19 @@ pub fn passive_gold(config: &GameConfig, importance: &Importance, consistency: f
     config.passive_gold_base * importance_weight(config, importance) * consistency * consistency
 }
 
+/// HP healed per day while injured — mirrors the tick's Step 2 healing.
+/// Full rate is passive_gold × heal_rate, capped by this habit's own HP debt
+/// (`health_removed`). Once the debt is cleared it trickles at 5% of full rate.
+/// Returns 0 when the char is at full HP (caller passes health_removed only when injured).
+pub fn daily_heal(config: &GameConfig, passive: f64, health_removed: f64) -> f64 {
+    let full_heal = passive * config.passive_gold_heal_rate;
+    if health_removed > 0.0 {
+        full_heal.min(health_removed)
+    } else {
+        full_heal * 0.05
+    }
+}
+
 /// Reschedule cost (gold): ceil(RESCHEDULE_COST_BASE × importance_weight × (1 + reschedules_this_cycle))
 pub fn reschedule_cost(
     config: &GameConfig,
@@ -529,6 +542,18 @@ mod tests {
     fn passive_gold_at_full_consistency_high_importance() {
         // 12.0 × 2.0 × 1.0² = 24.0
         assert!((passive_gold(&cfg(), &Importance::High, 1.0) - 24.0).abs() < 1e-9);
+    }
+
+    // ── daily_heal ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn daily_heal_capped_by_debt() {
+        // full rate 24 × 0.25 = 6.0, debt only 2.0 → heal capped at 2.0
+        assert!((daily_heal(&cfg(), 24.0, 2.0) - 2.0).abs() < 1e-9);
+        // debt above full rate → full rate 6.0
+        assert!((daily_heal(&cfg(), 24.0, 50.0) - 6.0).abs() < 1e-9);
+        // debt cleared → 5% trickle of full rate: 6.0 × 0.05 = 0.3
+        assert!((daily_heal(&cfg(), 24.0, 0.0) - 0.3).abs() < 1e-9);
     }
 
     #[test]

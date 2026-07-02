@@ -261,6 +261,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
                 currentGold={gold}
                 completionGold={h.completionGold}
                 passiveGold={h.passiveGold}
+                dailyHeal={h.dailyHeal}
                 healing={hp < 100}
                 streak={h.streak ?? 0}
                 completed={completedIds.has(h.id)}

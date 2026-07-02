@@ -130,6 +130,7 @@ pub async fn list_habits(
             game::completion_gold(&state.config, &habit.importance, &habit_completions, today)
         };
         let passive_gold = game::passive_gold(&state.config, &habit.importance, consistency);
+        let daily_heal = game::daily_heal(&state.config, passive_gold, habit.health_removed);
         let streak = compute_streak(habit, &habit_completions, &next_deadline, today);
 
         result.push(HabitWithState {
@@ -141,6 +142,7 @@ pub async fn list_habits(
             can_backfill,
             completion_gold,
             passive_gold,
+            daily_heal,
             streak,
         });
     }
