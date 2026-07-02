@@ -134,14 +134,10 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         let passive = passive_gold(config, &habit.importance, consistency);
         let hp_before_delta = input.current_hp + hp_delta;
         if hp_before_delta > 0.0 && hp_before_delta < config.max_hp {
-            let full_heal = passive * config.passive_gold_heal_rate;
-            let heal = if cur_health_removed > 0.0 {
-                let capped = full_heal.min(cur_health_removed);
-                cur_health_removed -= capped;
-                capped
-            } else {
-                full_heal * 0.05
-            };
+            let heal = game::daily_heal(config, passive, cur_health_removed);
+            if cur_health_removed > 0.0 {
+                cur_health_removed -= heal; // pay down this habit's debt
+            }
             if heal > 0.0 {
                 hp_delta += heal;
                 health_events.push(HealthEvent {
