@@ -519,6 +519,25 @@ pub async fn get_boss(
                     .map(|i| i.name.clone());
                 json!({ "gold": r.gold, "item": item_name, "heal": r.heal })
             });
+            // Final fight state for the detail view (leaderboard, HP felled).
+            let my_name = my_name(&state);
+            let quest = p.cached_state.as_ref();
+            let leaderboard: Vec<Value> = quest.map(|q| {
+                let mut entries: Vec<_> = q.contributions.iter()
+                    .map(|(name, c)| (name.clone(), c.total)).collect();
+                entries.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                entries.into_iter().map(|(name, total)| {
+                    let is_me = name == my_name;
+                    json!({ "name": name, "total": total, "isMe": is_me })
+                }).collect()
+            }).unwrap_or_default();
+            let my_contribution = quest
+                .and_then(|q| q.contributions.get(&my_name))
+                .map(|c| c.total).unwrap_or(0.0);
+            let quest_json = quest.map(|q| json!({
+                "hpPool": q.hp_pool, "hpRemaining": q.hp_remaining,
+                "endsAt": q.ends_at, "durationDays": q.duration_days,
+            }));
             vec![json!({
                 "questId": p.quest_id,
                 "boss": boss_def.as_ref().map(|d| boss_def_to_json(d, &state.catalogue)),
@@ -526,6 +545,9 @@ pub async fn get_boss(
                 "brokenGear": broken_names,
                 "resolvedAt": p.resolved_at,
                 "reward": reward,
+                "quest": quest_json,
+                "leaderboard": leaderboard,
+                "myContribution": my_contribution,
             })]
         })
         .unwrap_or_default();

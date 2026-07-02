@@ -108,6 +108,66 @@ function VictoryModal({ entry, onClose }) {
   );
 }
 
+function LeaderboardList({ leaderboard }) {
+  if (!leaderboard?.length) return null;
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em', marginBottom: '4px' }}>LEADERBOARD</div>
+      {leaderboard.map((entry, i) => (
+        <div key={i} style={{
+          display: 'flex', justifyContent: 'space-between',
+          fontSize: '0.73rem', padding: '3px 0',
+          color: entry.isMe ? 'var(--color-text)' : 'var(--color-text-muted)',
+          borderBottom: '1px solid rgba(255,255,255,0.04)',
+        }}>
+          <span>{entry.name}{entry.isMe && <span style={{ color: '#4caf7d', marginLeft: '6px', fontSize: '0.65rem' }}>(you)</span>}</span>
+          <span>{dmg(entry.total)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Read-only recap of a resolved fight: outcome, final HP, leaderboard, spoils.
+function RecentDetailModal({ entry, onClose }) {
+  const { boss, outcome, reward, brokenGear, quest, leaderboard, myContribution = 0, resolvedAt } = entry;
+  const label = outcome === 'victory' ? '✓ Victory' : outcome === 'defeat' ? '✕ Defeat' : '⚐ Abandoned';
+  const color = outcome === 'victory' ? '#4caf7d' : outcome === 'abandoned' ? '#c0a040' : '#c04040';
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} className="stone-panel" style={{ maxWidth: '380px', width: '100%', padding: '20px', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+          <span style={{ fontFamily: "'Cinzel', serif", fontSize: '1rem', fontWeight: 700 }}>{boss.name}</span>
+          <TierBadge tier={boss.tier} />
+        </div>
+        <div style={{ fontSize: '0.72rem', marginBottom: '10px' }}>
+          <span style={{ color }}>{label}</span>
+          <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px' }}>{resolvedAt?.slice(0, 10)}</span>
+        </div>
+        {quest && <HpBar remaining={quest.hpRemaining} pool={quest.hpPool} />}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.75rem', marginBottom: '10px', color: 'var(--color-text-muted)' }}>
+          Damage dealt:&nbsp;<span style={{ color: 'var(--color-text)' }}>{dmg(myContribution)}</span>
+        </div>
+        <LeaderboardList leaderboard={leaderboard} />
+        {outcome === 'victory' && reward && (
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em', marginBottom: '4px' }}>SPOILS</div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.8rem' }}>
+              <span style={{ color: 'var(--color-gold)' }}>⚜ {Math.round(reward.gold || 0)}</span>
+              {reward.item && <span style={{ color: '#c08040' }}>🗡 {reward.item}</span>}
+              {reward.heal > 0 && <span style={{ color: '#4caf7d' }}>♥ +{Math.round(reward.heal)}</span>}
+            </div>
+          </div>
+        )}
+        {brokenGear?.length > 0 && (
+          <div style={{ fontSize: '0.72rem', color: '#c04040', marginBottom: '12px' }}>💔 Broke: {brokenGear.join(', ')}</div>
+        )}
+        <button className="rune-btn" onClick={onClose} style={{ width: '100%' }}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 // Reward breakdown: gold + chance at the unique item + chance at a heal.
 function RewardLine({ boss }) {
   return (
@@ -130,6 +190,7 @@ export default function BossPage({ refreshCharacter }) {
   const [launching, setLaunching] = useState(null);
   const [joining, setJoining] = useState(null);
   const [victory, setVictory] = useState(null);
+  const [detail, setDetail] = useState(null);
 
   // Pop the victory screen once per won quest (tracked in localStorage).
   useEffect(() => {
@@ -208,6 +269,7 @@ export default function BossPage({ refreshCharacter }) {
   return (
     <>
       {victory && <VictoryModal entry={victory} onClose={dismissVictory} />}
+      {detail && <RecentDetailModal entry={detail} onClose={() => setDetail(null)} />}
       {active && (() => {
         const { boss, quest, myContribution, myContributedThrough, gear, leaderboard, armor, damage, effMultiplier, damageBonus } = active;
         const scoredThrough = myContributedThrough
@@ -235,22 +297,7 @@ export default function BossPage({ refreshCharacter }) {
                 </span>
               </div>
 
-              {leaderboard?.length > 0 && (
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', letterSpacing: '0.1em', marginBottom: '4px' }}>LEADERBOARD</div>
-                  {leaderboard.map((entry, i) => (
-                    <div key={i} style={{
-                      display: 'flex', justifyContent: 'space-between',
-                      fontSize: '0.73rem', padding: '3px 0',
-                      color: entry.isMe ? 'var(--color-text)' : 'var(--color-text-muted)',
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                    }}>
-                      <span>{entry.name}{entry.isMe && <span style={{ color: '#4caf7d', marginLeft: '6px', fontSize: '0.65rem' }}>(you)</span>}</span>
-                      <span>{dmg(entry.total)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <LeaderboardList leaderboard={leaderboard} />
 
               <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '130px', background: '#0d1a22', border: '1px solid #204a5a', borderRadius: '4px', padding: '7px 10px' }}>
@@ -351,7 +398,7 @@ export default function BossPage({ refreshCharacter }) {
         <>
           <SectionHeader>RECENT</SectionHeader>
           {recent.map((entry, i) => (
-            <div key={i} className="stone-panel" style={{ padding: '12px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={i} onClick={() => setDetail(entry)} className="stone-panel" style={{ padding: '12px 14px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
               <div>
                 <span style={{ fontFamily: "'Cinzel', serif", fontSize: '0.82rem' }}>{entry.boss.name}</span>
                 <span style={{
