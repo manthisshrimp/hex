@@ -131,9 +131,19 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         // ── Step 2: Passive gold (or healing when injured) ───────────────
         // Healing is capped by health_removed (the HP debt this habit owes back).
         // Once the debt is cleared, the habit heals at only 5% of its full rate.
-        let passive = passive_gold(config, &habit.importance, consistency);
+        //
+        // Windowed habits only earn upkeep while their completion window is open
+        // and unmet; a completed windowed habit rests until its next window
+        // opens. Daily habits always earn.
+        let earns_upkeep = habit.frequency != "windowed"
+            || game::windowed_unmet(&habit_completions, date, habit.window_days);
+        let passive = if earns_upkeep {
+            passive_gold(config, &habit.importance, consistency)
+        } else {
+            0.0
+        };
         let hp_before_delta = input.current_hp + hp_delta;
-        if hp_before_delta > 0.0 && hp_before_delta < config.max_hp {
+        if passive > 0.0 && hp_before_delta > 0.0 && hp_before_delta < config.max_hp {
             let heal = game::daily_heal(config, passive, cur_health_removed);
             if cur_health_removed > 0.0 {
                 cur_health_removed -= heal; // pay down this habit's debt
@@ -149,7 +159,7 @@ pub fn process_tick(input: TickInput) -> TickOutput {
                     tick_date: date_str.clone(),
                 });
             }
-        } else {
+        } else if passive > 0.0 {
             gold_delta += passive;
             gold_events.push(GoldEvent {
                 id: Uuid::new_v4().to_string(),

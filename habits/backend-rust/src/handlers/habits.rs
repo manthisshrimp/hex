@@ -129,7 +129,14 @@ pub async fn list_habits(
         let completion_gold = if forsaken { 0.0 } else {
             game::completion_gold(&state.config, &habit.importance, &habit_completions, today)
         };
-        let passive_gold = game::passive_gold(&state.config, &habit.importance, consistency);
+        // Windowed habits only earn upkeep while their window is open and unmet.
+        let earns_upkeep = habit.frequency != "windowed"
+            || game::windowed_unmet(&habit_completions, today, habit.window_days);
+        let passive_gold = if earns_upkeep {
+            game::passive_gold(&state.config, &habit.importance, consistency)
+        } else {
+            0.0
+        };
         let daily_heal = game::daily_heal(&state.config, passive_gold, habit.health_removed);
         let streak = compute_streak(habit, &habit_completions, &next_deadline, today);
 

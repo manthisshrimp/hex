@@ -131,6 +131,22 @@ pub fn passive_gold(config: &GameConfig, importance: &Importance, consistency: f
     config.passive_gold_base * importance_weight(config, importance) * consistency * consistency
 }
 
+/// Whether a windowed habit is in an OPEN, UNMET completion window on `as_of` —
+/// i.e. it has not been completed within the trailing `window_days` days. A
+/// completion on day C advances the deadline to C + window_days, so the habit
+/// is "met" (resting) while a completion sits in `(as_of - window_days, as_of]`.
+/// Once the most recent completion ages past the window a fresh window opens and
+/// upkeep (passive gold / healing) resumes. Daily habits never rest — callers
+/// gate on `frequency == "windowed"` before consulting this.
+pub fn windowed_unmet(completions: &[Completion], as_of: NaiveDate, window_days: u32) -> bool {
+    let window_open = as_of - chrono::Duration::days(window_days as i64);
+    !completions.iter().any(|c| {
+        parse_iso_date(&c.completed_at)
+            .map(|d| d > window_open && d <= as_of)
+            .unwrap_or(false)
+    })
+}
+
 /// HP healed per day while injured — mirrors the tick's Step 2 healing.
 /// Full rate is passive_gold × heal_rate, capped by this habit's own HP debt
 /// (`health_removed`). Once the debt is cleared it trickles at 5% of full rate.
@@ -542,6 +558,21 @@ mod tests {
     fn passive_gold_at_full_consistency_high_importance() {
         // 12.0 × 2.0 × 1.0² = 24.0
         assert!((passive_gold(&cfg(), &Importance::High, 1.0) - 24.0).abs() < 1e-9);
+    }
+
+    // ── windowed_unmet ───────────────────────────────────────────────────────
+
+    #[test]
+    fn windowed_unmet_tracks_open_window() {
+        let win = 7;
+        let comps = vec![completion("h", "2026-07-01")];
+        // Within the trailing 7 days of the completion → met (resting).
+        assert!(!windowed_unmet(&comps, date("2026-07-03"), win));
+        assert!(!windowed_unmet(&comps, date("2026-07-07"), win));
+        // Deadline day (C + window_days): completion no longer covers → open again.
+        assert!(windowed_unmet(&comps, date("2026-07-08"), win));
+        // Never completed → always an open obligation.
+        assert!(windowed_unmet(&[], date("2026-07-08"), win));
     }
 
     // ── daily_heal ───────────────────────────────────────────────────────────
