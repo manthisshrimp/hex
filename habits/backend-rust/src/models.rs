@@ -449,6 +449,18 @@ pub struct Participation {
     pub cached_state: Option<HostedQuest>, // last poll of host, for rendering
     #[serde(default)]
     pub is_host: bool,                     // true when we launched (apply locally)
+    #[serde(default)]
+    pub reward: Option<RewardResult>,      // what actually dropped on victory
+}
+
+/// The rolled reward for a boss victory, persisted so the victory screen can
+/// show exactly what dropped (gold is always granted; item/heal are chance).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RewardResult {
+    pub gold: f64,
+    pub item: Option<String>, // item id that dropped, if any
+    pub heal: f64,            // actual HP restored
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

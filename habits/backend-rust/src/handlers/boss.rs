@@ -11,7 +11,7 @@ use crate::game;
 use crate::models::{
     ContributeRequest, GoldEvent, HealthEvent,
     HostedQuest, JoinBossRequest, LaunchBossRequest, MemberContribution,
-    ParticipantRequest, Participation,
+    ParticipantRequest, Participation, RewardResult,
 };
 use super::{require_auth, AppState};
 
@@ -220,6 +220,7 @@ pub async fn post_launch(
         resolved_at: None,
         cached_state: Some(hosted.clone()),
         is_host: true,
+        reward: None,
     };
 
     boss.hosted = Some(hosted);
@@ -280,6 +281,7 @@ pub async fn post_join(
         resolved_at: None,
         cached_state: Some(host_quest),
         is_host: false,
+        reward: None,
     };
 
     boss.participating = Some(participation);
@@ -385,7 +387,9 @@ pub async fn get_boss(
                 if victory && !p.reward_claimed {
                     p.reward_claimed = true;
                     if let Some(boss_def) = boss_cat::find(&boss_id) {
-                        let _ = grant_victory_reward(&state, &boss_def).await;
+                        if let Ok(result) = grant_victory_reward(&state, &boss_def).await {
+                            p.reward = Some(result);
+                        }
                     }
                 }
             }
@@ -508,11 +512,20 @@ pub async fn get_boss(
                     .map(|i| i.name.clone())
                     .unwrap_or_else(|| id.clone())
             }).collect();
+            // Reward with the item id resolved to a display name.
+            let reward = p.reward.as_ref().map(|r| {
+                let item_name = r.item.as_ref()
+                    .and_then(|id| state.catalogue.iter().find(|i| &i.id == id))
+                    .map(|i| i.name.clone());
+                json!({ "gold": r.gold, "item": item_name, "heal": r.heal })
+            });
             vec![json!({
+                "questId": p.quest_id,
                 "boss": boss_def.as_ref().map(|d| boss_def_to_json(d, &state.catalogue)),
                 "outcome": p.outcome,
                 "brokenGear": broken_names,
                 "resolvedAt": p.resolved_at,
+                "reward": reward,
             })]
         })
         .unwrap_or_default();
@@ -538,8 +551,10 @@ pub async fn get_boss(
 
 // ── Reward ────────────────────────────────────────────────────────────────────
 
-async fn grant_victory_reward(state: &AppState, boss_def: &BossDef) -> Result<(), AppError> {
+async fn grant_victory_reward(state: &AppState, boss_def: &BossDef) -> Result<RewardResult, AppError> {
     let mut character = state.store.character.get();
+    let mut dropped_item: Option<String> = None;
+    let mut healed = 0.0;
 
     // Always: gold
     character.gold = game::apply_gold_delta(character.gold, boss_def.reward_gold);
@@ -563,6 +578,7 @@ async fn grant_victory_reward(state: &AppState, boss_def: &BossDef) -> Result<()
             eq.inventory.push(item_id.to_string());
             eq.durability.insert(item_id.to_string(), max_dur);
             state.store.equipment.save(eq).await?;
+            dropped_item = Some(item_id.to_string());
         }
     }
 
@@ -572,6 +588,7 @@ async fn grant_victory_reward(state: &AppState, boss_def: &BossDef) -> Result<()
         character.hp = (character.hp + boss_def.reward_heal).min(state.config.max_hp);
         let actual = character.hp - old_hp;
         if actual > 0.0 {
+            healed = actual;
             state.store.events.append_health(HealthEvent {
                 id: Uuid::new_v4().to_string(),
                 event_type: "regen".to_string(),
@@ -584,7 +601,7 @@ async fn grant_victory_reward(state: &AppState, boss_def: &BossDef) -> Result<()
     }
 
     state.store.character.save(character).await?;
-    Ok(())
+    Ok(RewardResult { gold: boss_def.reward_gold, item: dropped_item, heal: healed })
 }
 
 // ── JSON helper ───────────────────────────────────────────────────────────────

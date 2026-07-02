@@ -75,6 +75,39 @@ function DifficultyLine({ boss }) {
   );
 }
 
+// One-time victory screen: announces the kill and the reward that actually
+// rolled (gold always; item/heal only if they dropped).
+function VictoryModal({ entry, onClose }) {
+  const r = entry.reward || {};
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+      <div onClick={e => e.stopPropagation()} className="stone-panel" style={{ maxWidth: '360px', width: '100%', padding: '22px', textAlign: 'center' }}>
+        <div style={{ fontFamily: "'Cinzel', serif", fontSize: '1.4rem', color: '#4caf7d', letterSpacing: '0.1em', marginBottom: '4px' }}>VICTORY</div>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', marginBottom: '18px' }}>
+          <span style={{ fontFamily: "'Cinzel', serif" }}>{entry.boss.name}</span>
+          <TierBadge tier={entry.boss.tier} />
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', letterSpacing: '0.12em', marginBottom: '10px' }}>SPOILS</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '18px' }}>
+          <div style={{ color: 'var(--color-gold)', fontSize: '1rem' }}>⚜ {Math.round(r.gold || 0)} gold</div>
+          <div style={{ fontSize: '0.9rem', color: r.item ? '#c08040' : 'var(--color-text-muted)' }}>
+            {r.item ? `🗡 ${r.item}` : '🗡 No item dropped'}
+          </div>
+          <div style={{ fontSize: '0.9rem', color: r.heal > 0 ? '#4caf7d' : 'var(--color-text-muted)' }}>
+            {r.heal > 0 ? `♥ +${Math.round(r.heal)} HP` : '♥ No heal'}
+          </div>
+        </div>
+        {entry.brokenGear?.length > 0 && (
+          <div style={{ fontSize: '0.72rem', color: '#c04040', marginBottom: '16px' }}>
+            💔 Broke: {entry.brokenGear.join(', ')}
+          </div>
+        )}
+        <button className="rune-btn" onClick={onClose} style={{ width: '100%' }}>Claim</button>
+      </div>
+    </div>
+  );
+}
+
 // Reward breakdown: gold + chance at the unique item + chance at a heal.
 function RewardLine({ boss }) {
   return (
@@ -96,6 +129,26 @@ export default function BossPage({ refreshCharacter }) {
   const [error, setError] = useState(null);
   const [launching, setLaunching] = useState(null);
   const [joining, setJoining] = useState(null);
+  const [victory, setVictory] = useState(null);
+
+  // Pop the victory screen once per won quest (tracked in localStorage).
+  useEffect(() => {
+    const list = data?.recent ?? [];
+    const seen = JSON.parse(localStorage.getItem('boss_victory_seen') || '[]');
+    const win = list.find(e => e.outcome === 'victory' && e.reward && e.questId && !seen.includes(e.questId));
+    if (win) setVictory(win);
+  }, [data]);
+
+  function dismissVictory() {
+    if (victory?.questId) {
+      const seen = JSON.parse(localStorage.getItem('boss_victory_seen') || '[]');
+      if (!seen.includes(victory.questId)) {
+        seen.push(victory.questId);
+        localStorage.setItem('boss_victory_seen', JSON.stringify(seen));
+      }
+    }
+    setVictory(null);
+  }
 
   async function reload() {
     try {
@@ -154,6 +207,7 @@ export default function BossPage({ refreshCharacter }) {
 
   return (
     <>
+      {victory && <VictoryModal entry={victory} onClose={dismissVictory} />}
       {active && (() => {
         const { boss, quest, myContribution, myContributedThrough, gear, leaderboard, armor, damage, effMultiplier, damageBonus } = active;
         const scoredThrough = myContributedThrough
