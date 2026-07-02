@@ -405,9 +405,13 @@ needed if everyone sustains a good 5-completion day (≈0.76 dmg each); casual
 |---|---|---|---|---|---|---|---|---|
 | Gloomfang *(starter)* | lesser | 50 | 5 days | 230 | 1 (solo) | 1.25× | 1 | 600 |
 | The Mirefen Lurker | lesser | 50 | 6 days | 270 | 1 (solo) | 1.3× | 1 | 900 |
+| The Gravebriar | lesser | 40 | 6 days | 310 | 1 (solo) | 1.35× | 1 | 1000 |
+| The Rendhorn | greater | 28 | 7 days | 750 | 2 | 1.45× | 2 | 1400 |
 | The Ashwarden | greater | 22 | 7 days | 900 | 2 | 1.5× | 2 | 1200 |
 | The Stormcaller | greater | 22 | 8 days | 1000 | 2 | 1.6× | 2 | 1700 |
 | Dreadtide | greater | 22 | 10 days | 1400 | 2 | 1.75× | 2 | 2000 |
+| The Emberwake | greater | 14 | 11 days | 1950 | 3 | 1.8× | 2 | 2500 |
 | The Hollow King | ancient | 8 | 12 days | 2600 | 3 | 1.9× | 2 | 3000 |
 | The Undying Vigil | ancient | 8 | 14 days | 3500 | 4 | 2.0× | 2 | 4000 |
+| The Graven Colossus | ancient | 4 | 16 days | 4800 | 4 | 2.2× | 3 | 5500 |
 | The Sundering | mythic | 2 | 18 days | 6300 | 5 | 2.5× | 3 | 7000 |

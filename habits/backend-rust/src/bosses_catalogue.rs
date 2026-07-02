@@ -36,7 +36,7 @@ pub struct BossDef {
 
 pub fn catalogue() -> Vec<BossDef> {
     vec![
-        // ── LESSER (weight 50) ────────────────────────────────────────────────
+        // ── LESSER ─────────────────────────────────────────────────────────────
         BossDef {
             id: "gloomfang",
             name: "Gloomfang",
@@ -73,7 +73,43 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal: 25.0,
             reward_heal_chance: 0.55,
         },
-        // ── GREATER (weight 22) ───────────────────────────────────────────────
+        BossDef {
+            id: "the_gravebriar",
+            name: "The Gravebriar",
+            lore: "A briar-beast grown from every promise left to wither, its thorns barbed with old regret.",
+            tier: "lesser",
+            reveal_weight: 40,
+            reveal_text: "The trail out of the wood has closed overnight — a wall of black thorn where none stood yesterday, and something breathing behind it.",
+            duration_days: 6,
+            base_hp: 3.1,
+            threshold: 0.55,
+            damage_multiplier: 1.35,
+            wear_per_day: 1,
+            reward_gold: 1000.0,
+            reward_item: Some("rnw-1"),
+            reward_item_chance: 0.45,
+            reward_heal: 25.0,
+            reward_heal_chance: 0.55,
+        },
+        // ── GREATER ─────────────────────────────────────────────────────────────
+        BossDef {
+            id: "the_rendhorn",
+            name: "The Rendhorn",
+            lore: "A maddened bull-beast that charges the instant focus wavers, goring the unready.",
+            tier: "greater",
+            reveal_weight: 28,
+            reveal_text: "Fenceposts lie splintered for a mile. Deep hoof-craters lead toward the village, and the ground still trembles.",
+            duration_days: 7,
+            base_hp: 7.5,
+            threshold: 0.62,
+            damage_multiplier: 1.45,
+            wear_per_day: 2,
+            reward_gold: 1400.0,
+            reward_item: Some("rnw-2"),
+            reward_item_chance: 0.5,
+            reward_heal: 20.0,
+            reward_heal_chance: 0.42,
+        },
         BossDef {
             id: "ashwarden",
             name: "The Ashwarden",
@@ -128,7 +164,25 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal: 30.0,
             reward_heal_chance: 0.35,
         },
-        // ── ANCIENT (weight 8) ────────────────────────────────────────────────
+        BossDef {
+            id: "the_emberwake",
+            name: "The Emberwake",
+            lore: "A slumbering fire-serpent that wakes when discipline cools, and burns hottest where resolve ran thin.",
+            tier: "greater",
+            reveal_weight: 14,
+            reveal_text: "Ash falls like grey snow. Deep underground a long body uncoils, and the wells have begun to steam.",
+            duration_days: 11,
+            base_hp: 19.5,
+            threshold: 0.80,
+            damage_multiplier: 1.8,
+            wear_per_day: 2,
+            reward_gold: 2500.0,
+            reward_item: Some("rnw-5"),
+            reward_item_chance: 0.62,
+            reward_heal: 35.0,
+            reward_heal_chance: 0.5,
+        },
+        // ── ANCIENT ─────────────────────────────────────────────────────────────
         BossDef {
             id: "hollow_king",
             name: "The Hollow King",
@@ -165,7 +219,25 @@ pub fn catalogue() -> Vec<BossDef> {
             reward_heal: 50.0,
             reward_heal_chance: 0.5,
         },
-        // ── MYTHIC (weight 2) ─────────────────────────────────────────────────
+        BossDef {
+            id: "the_graven_colossus",
+            name: "The Graven Colossus",
+            lore: "A mountain given the shape of a warden, roused only for those who would test the truly steadfast.",
+            tier: "ancient",
+            reveal_weight: 4,
+            reveal_text: "A peak that stood for an age is simply gone — risen, and walking. Each step it takes is heard three valleys over.",
+            duration_days: 16,
+            base_hp: 48.0,
+            threshold: 0.92,
+            damage_multiplier: 2.2,
+            wear_per_day: 3,
+            reward_gold: 5500.0,
+            reward_item: Some("rnw-8"),
+            reward_item_chance: 0.85,
+            reward_heal: 55.0,
+            reward_heal_chance: 0.55,
+        },
+        // ── MYTHIC ──────────────────────────────────────────────────────────────
         BossDef {
             id: "the_sundering",
             name: "The Sundering",
@@ -220,8 +292,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn catalogue_has_eight_bosses() {
-        assert_eq!(catalogue().len(), 8);
+    fn catalogue_has_twelve_bosses() {
+        assert_eq!(catalogue().len(), 12);
     }
 
     #[test]
