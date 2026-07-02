@@ -142,6 +142,22 @@ pub fn completed_on(completions: &[Completion], habit_id: &str, day: NaiveDate) 
     })
 }
 
+/// Whether a windowed habit is COVERED on `as_of` — completed within its current
+/// window and not yet due again. A completion on day C advances the deadline to
+/// C + window_days, so the habit stays covered for every day in
+/// `(as_of - window_days, as_of]` that holds a completion. While covered it earns
+/// upkeep (passive gold / healing); once the window lapses with no completion it
+/// is due/overdue and earns nothing until completed again. Daily habits are never
+/// gated — callers check `frequency == "windowed"` first.
+pub fn windowed_covered(completions: &[Completion], as_of: NaiveDate, window_days: u32) -> bool {
+    let window_open = as_of - chrono::Duration::days(window_days as i64);
+    completions.iter().any(|c| {
+        parse_iso_date(&c.completed_at)
+            .map(|d| d > window_open && d <= as_of)
+            .unwrap_or(false)
+    })
+}
+
 /// HP healed per day while injured — mirrors the tick's Step 2 healing.
 /// Full rate is passive_gold × heal_rate, capped by this habit's own HP debt
 /// (`health_removed`). Once the debt is cleared it trickles at 5% of full rate.
@@ -564,6 +580,17 @@ mod tests {
         assert!(!completed_on(&comps, "h", date("2026-07-02"))); // different day
         assert!(!completed_on(&comps, "h", date("2026-07-03"))); // no completion
         assert!(!completed_on(&comps, "missing", date("2026-07-01"))); // different habit
+    }
+
+    #[test]
+    fn windowed_covered_tracks_current_window() {
+        let win = 7; // completed 07-01 → due again 07-08
+        let comps = vec![completion("h", "2026-07-01")];
+        assert!(windowed_covered(&comps, date("2026-07-01"), win)); // completion day
+        assert!(windowed_covered(&comps, date("2026-07-03"), win)); // covered, not yet due
+        assert!(windowed_covered(&comps, date("2026-07-07"), win)); // last covered day
+        assert!(!windowed_covered(&comps, date("2026-07-08"), win)); // due again → lapsed
+        assert!(!windowed_covered(&[], date("2026-07-08"), win)); // never completed
     }
 
     // ── daily_heal ───────────────────────────────────────────────────────────

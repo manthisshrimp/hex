@@ -132,11 +132,12 @@ pub fn process_tick(input: TickInput) -> TickOutput {
         // Healing is capped by health_removed (the HP debt this habit owes back).
         // Once the debt is cleared, the habit heals at only 5% of its full rate.
         //
-        // Windowed habits earn upkeep on the days they're completed — the same
-        // day-attribution the boss battle record uses for done(d). Daily habits
+        // Windowed habits earn upkeep while COVERED — completed within their
+        // current window and not yet due again. Once the window lapses with no
+        // completion, upkeep stops until it's completed again. Daily habits
         // always earn.
         let earns_upkeep = habit.frequency != "windowed"
-            || game::completed_on(&habit_completions, &habit.id, date);
+            || game::windowed_covered(&habit_completions, date, habit.window_days);
         let passive = if earns_upkeep {
             passive_gold(config, &habit.importance, consistency)
         } else {

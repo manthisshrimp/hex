@@ -187,13 +187,14 @@ habits. A player maintaining ten high-consistency habits generates substantially
 more gold than one maintaining two.
 
 **Windowed upkeep gating:** daily habits earn passive income (and, when injured,
-healing) every calendar day. Windowed habits earn upkeep only on the days they
-are actually **completed** — the same day-attribution the boss battle record
-uses for `done(d)`. On every other day a windowed habit earns nothing; on a
-completion day it earns its full consistency-scaled passive (converted to
-healing when injured). This keeps an "every N days" habit from drawing a full
-daily habit's income for a fraction of the effort, and ties its upkeep to the
-same completion events the battle record shows.
+healing) every calendar day. Windowed habits earn upkeep only while **covered** —
+completed within their current window and not yet due again. A completion on day
+`C` covers the habit through `C + window_days − 1` (it comes due on `C +
+window_days`); on every covered day it earns its full consistency-scaled passive
+(converted to healing when injured). Once the window lapses with no completion
+the habit is due/overdue and earns nothing until it is completed again. This
+stops a neglected windowed habit from drawing income while overdue, without
+punishing one that's been done and is simply waiting for its next window.
 
 ### Reschedule
 
