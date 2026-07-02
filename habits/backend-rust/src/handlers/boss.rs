@@ -114,18 +114,7 @@ pub async fn post_contribute(
 
     // Absolute total (derived on the member's node), set idempotently. HP is
     // always recomputed from the sum of every member's total.
-    let mc = hosted.contributions.entry(name).or_default();
-    mc.total = body.total;
-    mc.last_date = today_str.clone();
-
-    let spent: f64 = hosted.contributions.values().map(|c| c.total).sum();
-    hosted.hp_remaining = hosted.hp_pool - spent;
-
-    // Check win/time-out
-    if hosted.hp_remaining <= 0.0 || today_str.as_str() >= hosted.ends_at.as_str() {
-        hosted.status = "ended".to_string();
-        hosted.ended_at = Some(today_str);
-    }
+    hosted.record_contribution(name, body.total, today_str.clone(), &today_str);
 
     let hp_remaining = hosted.hp_remaining;
     let status = hosted.status.clone();
@@ -660,25 +649,44 @@ fn boss_def_to_json(def: &BossDef, catalogue: &[crate::models::Item]) -> Value {
 mod tests {
     use std::collections::HashMap;
 
+    fn hosted(pool: f64, ends_at: &str) -> crate::models::HostedQuest {
+        crate::models::HostedQuest {
+            quest_id: "q".into(), boss_id: "b".into(), host_url: "".into(),
+            started_at: "2026-07-01".into(), duration_days: 5, ends_at: ends_at.into(),
+            hp_pool: pool, hp_remaining: pool,
+            contributions: HashMap::new(), status: "active".into(), ended_at: None,
+        }
+    }
+
     // HP is always pool − Σ member totals. Because totals are absolute (set, not
     // accumulated), re-publishing the same total is idempotent and a larger
-    // total only lowers HP further.
+    // total only lowers HP further. The quest ends on kill or time-out.
     #[test]
-    fn hp_is_pool_minus_sum_of_totals() {
-        let pool = 2.3_f64;
-        let mut totals: HashMap<&str, f64> = HashMap::new();
+    fn record_contribution_reconciles_hp_and_resolves() {
+        let mut q = hosted(2.3, "2026-07-06");
 
-        totals.insert("a", 1.0);
-        let hp1 = pool - totals.values().sum::<f64>();
+        q.record_contribution("a".into(), 1.0, "2026-07-02".into(), "2026-07-02");
+        let hp1 = q.hp_remaining;
 
-        totals.insert("a", 1.0); // same value again → no change
-        let hp2 = pool - totals.values().sum::<f64>();
-        assert_eq!(hp1, hp2, "re-publishing the same total must be idempotent");
+        q.record_contribution("a".into(), 1.0, "2026-07-02".into(), "2026-07-02"); // idempotent
+        assert_eq!(hp1, q.hp_remaining, "re-publishing the same total must be idempotent");
 
-        totals.insert("a", 1.5);
-        totals.insert("b", 0.5);
-        let hp3 = pool - totals.values().sum::<f64>();
-        assert!((hp3 - 0.3).abs() < 1e-9);
-        assert!(hp3 < hp1, "more damage → less HP");
+        q.record_contribution("a".into(), 1.5, "2026-07-02".into(), "2026-07-02");
+        q.record_contribution("b".into(), 0.5, "2026-07-02".into(), "2026-07-02");
+        assert!((q.hp_remaining - 0.3).abs() < 1e-9);
+        assert!(q.hp_remaining < hp1, "more damage → less HP");
+        assert_eq!(q.status, "active", "still alive above 0 HP before the deadline");
+
+        // Kill: total ≥ pool → ended.
+        q.record_contribution("b".into(), 1.3, "2026-07-03".into(), "2026-07-03");
+        assert!(q.hp_remaining <= 0.0);
+        assert_eq!(q.status, "ended");
+        assert_eq!(q.ended_at.as_deref(), Some("2026-07-03"));
+
+        // Time-out: alive but past ends_at → ended.
+        let mut q2 = hosted(100.0, "2026-07-06");
+        q2.record_contribution("a".into(), 1.0, "2026-07-06".into(), "2026-07-06");
+        assert!(q2.hp_remaining > 0.0);
+        assert_eq!(q2.status, "ended", "reaching ends_at resolves the quest even with HP left");
     }
 }

@@ -117,15 +117,7 @@ pub(crate) async fn sync_boss_contribution(state: &AppState, today: NaiveDate) {
     if p.is_host {
         let mut bs = state.store.boss.get();
         if let Some(ref mut hosted) = bs.hosted {
-            let mc = hosted.contributions.entry(my_name).or_default();
-            mc.total = my_total;
-            mc.last_date = scored_through.clone();
-            let spent: f64 = hosted.contributions.values().map(|c| c.total).sum();
-            hosted.hp_remaining = hosted.hp_pool - spent;
-            if hosted.hp_remaining <= 0.0 && hosted.status == "active" {
-                hosted.status = "ended".to_string();
-                hosted.ended_at = Some(game::today_str());
-            }
+            hosted.record_contribution(my_name, my_total, scored_through.clone(), &game::today_str());
         }
         if let Some(ref mut part) = bs.participating {
             part.last_contributed_date = scored_through;

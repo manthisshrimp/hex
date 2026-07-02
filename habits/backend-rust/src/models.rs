@@ -430,6 +430,24 @@ pub struct MemberContribution {
     pub total: f64,
 }
 
+impl HostedQuest {
+    /// Record one member's absolute total (idempotent), recompute HP from the
+    /// sum of every member's total, and resolve the quest on kill or time-out.
+    /// Single source of truth for host-side reconciliation — both the host's
+    /// own sync and remote `/contribute` posts route through here.
+    pub fn record_contribution(&mut self, name: String, total: f64, date: String, today: &str) {
+        let mc = self.contributions.entry(name).or_default();
+        mc.total = total;
+        mc.last_date = date;
+        let spent: f64 = self.contributions.values().map(|c| c.total).sum();
+        self.hp_remaining = self.hp_pool - spent;
+        if self.status == "active" && (self.hp_remaining <= 0.0 || today >= self.ends_at.as_str()) {
+            self.status = "ended".to_string();
+            self.ended_at = Some(today.to_string());
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Participation {
