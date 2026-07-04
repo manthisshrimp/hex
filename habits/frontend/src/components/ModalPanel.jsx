@@ -82,6 +82,9 @@ export default function ModalPanel({ open, onClose, onSave, initial }) {
           transition: border-color 0.15s;
         }
         .modal-input:focus { border-color: var(--color-border-glow); }
+        /* Kill the mobile double-tap-zoom delay so the first tap registers
+           immediately instead of waiting to see if a second tap follows. */
+        .rune-btn, .stepper-btn { touch-action: manipulation; }
         .rune-selector { display: flex; gap: 8px; }
         .rune-selector .rune-btn {
           flex: 1;
