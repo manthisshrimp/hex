@@ -696,9 +696,13 @@ h1, h2, h3 {
   text-align: center;
 }
 
-.rune-btn:hover {
-  border-color: var(--color-border-hi);
-  color: var(--color-text);
+/* Only on real-hover (desktop) devices — on touch, :hover sticks to the tapped
+   button until another is tapped, masking a deselect as if it were still active. */
+@media (hover: hover) {
+  .rune-btn:hover {
+    border-color: var(--color-border-hi);
+    color: var(--color-text);
+  }
 }
 
 .rune-btn.selected-low {
