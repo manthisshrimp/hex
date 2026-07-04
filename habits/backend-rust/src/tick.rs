@@ -82,6 +82,13 @@ pub fn process_tick(input: TickInput) -> TickOutput {
             continue;
         }
 
+        // Daily habits with a weekday schedule are dormant on off-days: no
+        // miss-damage, no passive/heal, no deadline change. Windowed cadence is
+        // governed by the deadline, not this gate.
+        if habit.frequency == "daily" && !game::scheduled_on(habit, date) {
+            continue;
+        }
+
         // ── Collect this habit's completions ──────────────────────────────
         let habit_completions: Vec<Completion> = input
             .completions
@@ -118,9 +125,14 @@ pub fn process_tick(input: TickInput) -> TickOutput {
                     tick_date: date_str.clone(),
                 });
 
-                // Advance deadline from the missed date (not from today).
-                let new_deadline = deadline
-                    + chrono::Duration::days(habit.window_days as i64);
+                // Advance deadline from the missed date (not from today). Daily
+                // habits step to their next scheduled weekday so misses land on
+                // active days; windowed advance by a full window.
+                let new_deadline = if habit.frequency == "daily" {
+                    game::next_scheduled_after(habit, deadline)
+                } else {
+                    deadline + chrono::Duration::days(habit.window_days as i64)
+                };
                 deadline_updates.push(DeadlineUpdate {
                     habit_id: habit.id.clone(),
                     new_deadline,
@@ -723,5 +735,33 @@ mod tests {
         };
         let out = process_tick(input);
         assert_eq!(out.gear_wear, 0);
+    }
+
+    // ── Daily habit dormant on an un-scheduled weekday ───────────────────────
+    #[test]
+    fn daily_off_day_no_damage_no_passive() {
+        use chrono::Datelike;
+        let tick_date = date("2026-04-25"); // Saturday (JS getDay 6)
+        let dow = tick_date.weekday().num_days_from_sunday() as u8;
+        let mut habit = make_daily_habit("h1", "Read", Importance::High);
+        // Scheduled only on a different weekday → today is an off-day.
+        habit.show_on_days = Some(vec![(dow + 1) % 7]);
+
+        let mut deadlines = HashMap::new();
+        deadlines.insert("h1".to_string(), date("2026-04-20")); // long overdue
+
+        let input = TickInput {
+            date: tick_date, habits: vec![habit], deadlines, completions: vec![],
+            current_hp: 100.0, current_gold: 100.0, current_renown: 0.0,
+            config: GameConfig::default(),
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0,
+        };
+        let out = process_tick(input);
+        // Off-day: no miss damage, no passive gold, no events, deadline untouched.
+        assert_eq!(out.new_hp, 100.0, "off-day daily deals no damage");
+        assert_eq!(out.new_gold, 100.0, "off-day daily earns no passive gold");
+        assert!(out.health_events.is_empty());
+        assert!(out.gold_events.is_empty());
+        assert!(out.deadline_updates.is_empty(), "off-day leaves the deadline alone");
     }
 }

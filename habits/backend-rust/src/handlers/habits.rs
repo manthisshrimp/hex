@@ -106,7 +106,8 @@ pub async fn list_habits(
 
         // can_complete: false if already completed in the current cycle or today.
         let can_complete = if habit.frequency == "daily" {
-            !habit_completions.iter().any(|c| {
+            // Only due on scheduled weekdays, and not already done today.
+            game::scheduled_on(habit, today) && !habit_completions.iter().any(|c| {
                 c.completed_at.get(..10).unwrap_or("") == today_str
             })
         } else {
@@ -130,9 +131,13 @@ pub async fn list_habits(
             game::completion_gold(&state.config, &habit.importance, &habit_completions, today)
         };
         // Windowed habits earn upkeep while covered — completed within their
-        // current window and not yet due again.
-        let earns_upkeep = habit.frequency != "windowed"
-            || game::windowed_covered(&habit_completions, today, habit.window_days);
+        // current window and not yet due again. Daily habits earn only on their
+        // scheduled weekdays.
+        let earns_upkeep = if habit.frequency == "windowed" {
+            game::windowed_covered(&habit_completions, today, habit.window_days)
+        } else {
+            game::scheduled_on(habit, today)
+        };
         let passive_gold = if earns_upkeep {
             game::passive_gold(&state.config, &habit.importance, consistency)
         } else {
@@ -202,14 +207,16 @@ pub async fn create_habit(
 
     // Set initial deadline.
     let today = game::today();
-    let today_str = game::today_str();
 
     let initial_deadline = if freq == "windowed" {
         (today + chrono::Duration::days(window_days as i64))
             .format("%Y-%m-%d")
             .to_string()
     } else {
-        today_str
+        // First scheduled weekday on/after today (today itself for an all-days daily).
+        game::next_scheduled_on_or_after(&habit, today)
+            .format("%Y-%m-%d")
+            .to_string()
     };
     state.store.deadlines.set(&habit.id, &initial_deadline).await?;
 
@@ -312,8 +319,13 @@ pub async fn complete_habit(
         game::gold_roll_bonus(base_gold, roll)
     };
 
-    // Advance deadline: completion_date + window_days.
-    let new_deadline = today + chrono::Duration::days(habit.window_days as i64);
+    // Advance deadline: daily → next scheduled weekday after today; windowed →
+    // completion_date + window_days.
+    let new_deadline = if habit.frequency == "daily" {
+        game::next_scheduled_after(&habit, today)
+    } else {
+        today + chrono::Duration::days(habit.window_days as i64)
+    };
     state
         .store
         .deadlines
@@ -532,7 +544,11 @@ pub async fn restore_habit(
 
     // Reset deadline so the habit starts a fresh cycle from today.
     let today = game::today();
-    let new_deadline = today + chrono::Duration::days(habit.window_days as i64);
+    let new_deadline = if habit.frequency == "daily" {
+        game::next_scheduled_after(&habit, today)
+    } else {
+        today + chrono::Duration::days(habit.window_days as i64)
+    };
     state
         .store
         .deadlines

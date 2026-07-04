@@ -103,7 +103,7 @@ pub(crate) async fn sync_boss_contribution(state: &AppState, today: NaiveDate) {
             let hb: &crate::models::Habit = h;
             let done_today = game::completed_on(&completions, &hb.id, day);
             if done_today { done += 1; }
-            if game::boss_scheduled_on(hb, day) || done_today { due += 1; }
+            if game::scheduled_on(hb, day) || done_today { due += 1; }
         }
         my_total += game::daily_completion(due, done) * gear_bonus;
         scored_through = date_str;
@@ -217,7 +217,7 @@ pub async fn get_character(
                 let initial_deadline = if habit.frequency == "windowed" {
                     created_date + chrono::Duration::days(habit.window_days as i64)
                 } else {
-                    created_date
+                    game::next_scheduled_on_or_after(habit, created_date)
                 };
                 state.store.deadlines.set(
                     &habit.id,
@@ -448,9 +448,14 @@ pub async fn checkin(
                 completed_at: yesterday_iso.clone(),
             };
             state.store.completions.append(completion).await?;
-            // Advance the deadline: yesterday + window_days.
+            // Advance the deadline: daily → next scheduled weekday after yesterday;
+            // windowed → yesterday + window_days.
             if let Some(habit) = state.store.habits.get_all().iter().find(|h| &h.id == id).cloned() {
-                let new_deadline = yesterday + chrono::Duration::days(habit.window_days as i64);
+                let new_deadline = if habit.frequency == "daily" {
+                    game::next_scheduled_after(&habit, yesterday)
+                } else {
+                    yesterday + chrono::Duration::days(habit.window_days as i64)
+                };
                 state.store.deadlines.set(id, &new_deadline.format("%Y-%m-%d").to_string()).await?;
             }
         }

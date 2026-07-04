@@ -196,9 +196,44 @@ pub fn compute_consistency(config: &GameConfig, habit: &Habit, completions: &[Co
     if habit.frequency == "windowed" {
         compute_consistency_windowed(config, completions, as_of, habit.window_days)
     } else {
-        let created = parse_iso_date(&habit.created_at).unwrap_or(as_of);
-        compute_consistency_daily_with_created(config, completions, as_of, created)
+        compute_consistency_daily_scheduled(config, completions, as_of, habit)
     }
+}
+
+/// Daily consistency restricted to the habit's scheduled weekdays: completed
+/// scheduled days ÷ scheduled days within the 30-day window. For a habit with no
+/// `show_on_days` (every day) this equals [`compute_consistency_daily`]. A habit
+/// with e.g. Mon/Wed/Fri can still reach 100% by completing all its scheduled
+/// days; its off-days never count against it.
+pub fn compute_consistency_daily_scheduled(
+    config: &GameConfig,
+    completions: &[Completion],
+    as_of_date: NaiveDate,
+    habit: &Habit,
+) -> f64 {
+    let window = config.consistency_window_days as i64;
+    if window <= 0 { return 0.0; }
+    let window_start = as_of_date - chrono::Duration::days(window);
+
+    // Count scheduled days in [window_start, as_of).
+    let mut scheduled_days = 0i64;
+    let mut d = window_start;
+    while d < as_of_date {
+        if scheduled_on(habit, d) { scheduled_days += 1; }
+        d += chrono::Duration::days(1);
+    }
+    if scheduled_days == 0 { return 0.0; }
+
+    let mut completed_days = std::collections::HashSet::new();
+    for c in completions {
+        if let Some(cd) = parse_iso_date(&c.completed_at) {
+            if cd >= window_start && cd < as_of_date && scheduled_on(habit, cd) {
+                completed_days.insert(cd);
+            }
+        }
+    }
+
+    (completed_days.len() as f64 / scheduled_days as f64).min(1.0)
 }
 
 /// Consistency for a daily habit: fraction of days in the last
@@ -306,24 +341,41 @@ pub fn daily_completion(due: u32, done: u32) -> f64 {
     effort * consistency
 }
 
-/// Whether a habit is *scheduled* on `day` by its regular cadence — used as the
-/// boss's `due` signal so a weekly habit doesn't count as "due" every day.
+/// Whether a habit is *scheduled* on `day` by its regular cadence. Drives the
+/// boss's `due` signal, daily miss-damage/upkeep gating, and mastery denominators.
 ///
-/// - Daily habits: every day.
-/// - Windowed habits with `show_on_days`: only on those weekdays (JS `getDay()`
+/// - Daily habits with `show_on_days`: only on those weekdays (JS `getDay()`
 ///   convention, 0=Sun … 6=Sat).
+/// - Daily habits with no `show_on_days`: every day (the default).
+/// - Windowed habits with `show_on_days`: only on those weekdays.
 /// - Flexible windowed habits (no `show_on_days`): not tied to a weekday, so
 ///   they're never "scheduled" on a particular day. The boss counts them only
 ///   on days they're actually completed (bonus effort, no idle-day penalty).
-pub fn boss_scheduled_on(habit: &crate::models::Habit, day: NaiveDate) -> bool {
-    if habit.frequency == "daily" { return true; }
+pub fn scheduled_on(habit: &crate::models::Habit, day: NaiveDate) -> bool {
     match &habit.show_on_days {
         Some(days) if !days.is_empty() => {
             let dow = day.weekday().num_days_from_sunday() as u8;
             days.contains(&dow)
         }
-        _ => false,
+        // No weekday list: daily runs every day; flexible windowed never schedules.
+        _ => habit.frequency == "daily",
     }
+}
+
+/// Smallest day `>= from` on which `habit` is scheduled. Bounded to a year to
+/// avoid an unbounded loop on a pathological (empty-schedule) habit.
+pub fn next_scheduled_on_or_after(habit: &crate::models::Habit, from: NaiveDate) -> NaiveDate {
+    let mut d = from;
+    for _ in 0..366 {
+        if scheduled_on(habit, d) { return d; }
+        d += chrono::Duration::days(1);
+    }
+    from // no scheduled day within a year — fall back (shouldn't happen for daily)
+}
+
+/// Smallest day strictly after `from` on which `habit` is scheduled.
+pub fn next_scheduled_after(habit: &crate::models::Habit, from: NaiveDate) -> NaiveDate {
+    next_scheduled_on_or_after(habit, from + chrono::Duration::days(1))
 }
 
 /// Effective boss miss multiplier after the wearer's own armor mitigates the
@@ -406,18 +458,58 @@ mod tests {
     }
 
     #[test]
-    fn boss_scheduled_on_cadence() {
+    fn scheduled_on_cadence() {
         let day = date("2026-06-30");
         let dow = day.weekday().num_days_from_sunday() as u8; // JS getDay for this day
         let other = (dow + 1) % 7;
 
-        // Daily habits are scheduled every day.
-        assert!(boss_scheduled_on(&sched_habit("daily", None), day));
+        // Daily habits with no list are scheduled every day.
+        assert!(scheduled_on(&sched_habit("daily", None), day));
+        // Daily + show_on_days: only on matching weekday.
+        assert!(scheduled_on(&sched_habit("daily", Some(vec![dow])), day));
+        assert!(!scheduled_on(&sched_habit("daily", Some(vec![other])), day));
         // Windowed + show_on_days: only on matching weekday.
-        assert!(boss_scheduled_on(&sched_habit("windowed", Some(vec![dow])), day));
-        assert!(!boss_scheduled_on(&sched_habit("windowed", Some(vec![other])), day));
+        assert!(scheduled_on(&sched_habit("windowed", Some(vec![dow])), day));
+        assert!(!scheduled_on(&sched_habit("windowed", Some(vec![other])), day));
         // Flexible windowed (no show_on_days): never scheduled on a given day.
-        assert!(!boss_scheduled_on(&sched_habit("windowed", None), day));
+        assert!(!scheduled_on(&sched_habit("windowed", None), day));
+    }
+
+    #[test]
+    fn next_scheduled_helpers() {
+        // All-days daily: on_or_after is identity, after is +1.
+        let daily = sched_habit("daily", None);
+        assert_eq!(next_scheduled_on_or_after(&daily, date("2026-06-30")), date("2026-06-30"));
+        assert_eq!(next_scheduled_after(&daily, date("2026-06-30")), date("2026-07-01"));
+
+        // Mon/Wed/Fri daily (JS getDay Mon=1, Wed=3, Fri=5).
+        let mwf = sched_habit("daily", Some(vec![1, 3, 5]));
+        // 2026-06-30 is a Tuesday → next scheduled is Wed 2026-07-01.
+        assert_eq!(next_scheduled_on_or_after(&mwf, date("2026-06-30")), date("2026-07-01"));
+        // From Wed, strictly-after skips to Fri 2026-07-03.
+        assert_eq!(next_scheduled_after(&mwf, date("2026-07-01")), date("2026-07-03"));
+    }
+
+    #[test]
+    fn daily_mastery_uses_scheduled_days() {
+        // Mon/Wed/Fri habit, completed every scheduled day in the window → 100%.
+        let mwf = sched_habit("daily", Some(vec![1, 3, 5]));
+        let as_of = date("2026-07-04"); // Saturday
+        let window = cfg().consistency_window_days as i64;
+        let mut comps = Vec::new();
+        let mut d = as_of - chrono::Duration::days(window);
+        while d < as_of {
+            if scheduled_on(&mwf, d) {
+                comps.push(completion("h", &d.format("%Y-%m-%d").to_string()));
+            }
+            d += chrono::Duration::days(1);
+        }
+        let c = compute_consistency_daily_scheduled(&cfg(), &comps, as_of, &mwf);
+        assert!((c - 1.0).abs() < 1e-9, "all scheduled days done → 100%, got {c}");
+
+        // No completions → 0, and off-days never counted.
+        let none = compute_consistency_daily_scheduled(&cfg(), &[], as_of, &mwf);
+        assert_eq!(none, 0.0);
     }
 
     fn completion(habit_id: &str, date_str: &str) -> Completion {

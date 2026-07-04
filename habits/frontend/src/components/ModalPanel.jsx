@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { IMP_COLOR } from '../constants'
 
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6] // JS getDay: 0=Sun … 6=Sat
+
 export default function ModalPanel({ open, onClose, onSave, initial }) {
   const [name, setName] = useState('')
   const [importance, setImportance] = useState('medium')
@@ -19,10 +21,15 @@ export default function ModalPanel({ open, onClose, onSave, initial }) {
         setImportance(initial.importance)
         setFrequency(initial.frequency)
         setWindowDays(initial.windowDays || 7)
-        setShowOnDays(initial.showOnDays || [])
+        // Empty/none means "every day" for a daily habit → show all selected.
+        setShowOnDays(
+          initial.showOnDays && initial.showOnDays.length
+            ? initial.showOnDays
+            : (initial.frequency === 'daily' ? ALL_DAYS : [])
+        )
         setNotes(initial.notes || '')
       } else {
-        setName(''); setImportance('medium'); setFrequency('daily'); setWindowDays(7); setShowOnDays([]); setNotes('')
+        setName(''); setImportance('medium'); setFrequency('daily'); setWindowDays(7); setShowOnDays(ALL_DAYS); setNotes('')
       }
       setError('')
       setSaving(false)
@@ -38,7 +45,11 @@ export default function ModalPanel({ open, onClose, onSave, initial }) {
         importance,
         frequency,
         windowDays: frequency === 'daily' ? 1 : Math.max(2, windowDays),
-        showOnDays: frequency === 'windowed' ? showOnDays : [],
+        // Daily: all-or-none selected → [] (canonical "every day"); else the subset.
+        // Windowed: pass the selection through unchanged.
+        showOnDays: frequency === 'daily'
+          ? (showOnDays.length === 0 || showOnDays.length === 7 ? [] : showOnDays)
+          : showOnDays,
         notes: notes.trim() || null,
       })
     } catch (e) {
@@ -146,7 +157,12 @@ export default function ModalPanel({ open, onClose, onSave, initial }) {
                 <button
                   key={f}
                   className={`rune-btn${frequency === f ? ' active' : ''}`}
-                  onClick={() => setFrequency(f)}
+                  onClick={() => {
+                    setFrequency(f)
+                    // Reset to each frequency's default: daily → every day,
+                    // windowed → flexible (no weekday restriction).
+                    setShowOnDays(f === 'daily' ? ALL_DAYS : [])
+                  }}
                 >
                   {f.charAt(0).toUpperCase() + f.slice(1)}
                 </button>
@@ -163,24 +179,22 @@ export default function ModalPanel({ open, onClose, onSave, initial }) {
               </div>
             )}
 
-            {frequency === 'windowed' && (
-              <>
-                <label className="modal-label">Show on days</label>
-                <div className="day-selector">
-                  {[['Mo', 1], ['Tu', 2], ['We', 3], ['Th', 4], ['Fr', 5], ['Sa', 6], ['Su', 0]].map(([label, dow]) => (
-                    <button
-                      key={dow}
-                      className={`rune-btn${showOnDays.includes(dow) ? ' active' : ''}`}
-                      onClick={() => setShowOnDays(prev =>
-                        prev.includes(dow) ? prev.filter(d => d !== dow) : [...prev, dow]
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+            <label className="modal-label">
+              {frequency === 'daily' ? 'Active on days' : 'Show on days'}
+            </label>
+            <div className="day-selector">
+              {[['Mo', 1], ['Tu', 2], ['We', 3], ['Th', 4], ['Fr', 5], ['Sa', 6], ['Su', 0]].map(([label, dow]) => (
+                <button
+                  key={dow}
+                  className={`rune-btn${showOnDays.includes(dow) ? ' active' : ''}`}
+                  onClick={() => setShowOnDays(prev =>
+                    prev.includes(dow) ? prev.filter(d => d !== dow) : [...prev, dow]
+                  )}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
             <label className="modal-label">Notes</label>
             <textarea
