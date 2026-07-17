@@ -101,6 +101,7 @@ pub struct HabitWithState {
     pub passive_gold: f64,             // passive gold earned per day tick
     pub daily_heal: f64,               // HP healed per day while injured (passive × heal_rate, capped by debt)
     pub streak: u32,                   // consecutive completed cycles
+    pub covered: bool,                 // windowed: completed within current window, not yet due again
 }
 
 // ── Equipment ─────────────────────────────────────────────────────────────────

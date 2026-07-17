@@ -133,8 +133,10 @@ pub async fn list_habits(
         // Windowed habits earn upkeep while covered — completed within their
         // current window and not yet due again. Daily habits earn only on their
         // scheduled weekdays.
+        let covered = habit.frequency == "windowed"
+            && game::windowed_covered(&habit_completions, today, habit.window_days);
         let earns_upkeep = if habit.frequency == "windowed" {
-            game::windowed_covered(&habit_completions, today, habit.window_days)
+            covered
         } else {
             game::scheduled_on(habit, today)
         };
@@ -157,6 +159,7 @@ pub async fn list_habits(
             passive_gold,
             daily_heal,
             streak,
+            covered,
         });
     }
 

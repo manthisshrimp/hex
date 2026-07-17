@@ -1029,6 +1029,8 @@ h1, h2, h3 {
 .dq-row.dq-completed { background-color: var(--color-complete); opacity: 0.75; }
 .dq-header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .dq-name { font-family: 'Cinzel', serif; font-size: 0.9rem; font-weight: 600; }
+.habit-bleed-drops { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.habit-bleed-drop { display: inline-block; width: 7px; height: 7px; background: linear-gradient(135deg, #ff4444, #991111); border-radius: 50% 0 50% 50%; transform: rotate(-45deg); box-shadow: 0 1px 3px rgba(180,0,0,0.5); }
 .dq-deadline { font-size: 0.75rem; color: var(--color-text-muted); font-style: italic; flex-shrink: 0; }
 .dq-deadline.overdue { color: var(--color-overdue); font-style: normal; font-weight: bold; }
 .dq-btn { width: 100%; padding: 8px; font-size: 0.85rem; }

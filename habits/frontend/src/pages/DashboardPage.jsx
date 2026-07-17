@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { fmtNum } from '../fmt';
 import SectionHeader from '../components/SectionHeader';
 import RandomEventCard from '../components/RandomEventCard';
+import BleedDrops from '../components/BleedDrops';
 import { useFloat } from '../components/FloatLayer';
 import { useNavigate } from 'react-router-dom';
 import { getHabits, getCharacter, completeHabit, debugAdvanceDays, payFerryman, getHistoryHp, getHistoryGold, getRandomEvent, getTodos, createTodo, completeTodo, deleteTodo, getWeeklyReward, claimWeeklyReward, getParty, cheerMember, addPartyMember, removePartyMember, getBoss } from '../api';
@@ -53,8 +54,11 @@ function CompactQuestRow({ habit, completed, onComplete, completionGold }) {
         style={{ borderLeftColor: IMP_COLOR[habit.importance] }}
       >
         <div className="dq-header">
-          <span className="dq-name" style={{ color: IMP_COLOR[habit.importance] }}>
-            {habit.name}
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+            <BleedDrops healthRemoved={habit.healthRemoved} />
+            <span className="dq-name" style={{ color: IMP_COLOR[habit.importance] }}>
+              {habit.name}
+            </span>
           </span>
           {overdue && (
             <span className="dq-deadline overdue">
@@ -411,19 +415,17 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
   }
 
   const today = getTodayStr();
-  const todayDow = new Date().getDay(); // 0=Sun, 1=Mon … 6=Sat
 
   const activeHabits = habits.filter(h => h.active && !h.inscribed);
 
   const dueHabits = activeHabits
     .filter(h => {
       if (h.id === SYSTEM_HABIT_ID) return false;
-      if (h.nextDeadline <= today) return h.canComplete;
-      // Also show windowed quests on their scheduled days if not yet completed this cycle
-      return h.frequency === 'windowed'
-        && Array.isArray(h.showOnDays)
-        && h.showOnDays.includes(todayDow)
-        && h.canComplete;
+      // Windowed quests stay on the board until covered (completed within the
+      // current window) — so a due or missed one keeps showing every day until done,
+      // but a freshly-completed one drops off even though its next window is open.
+      if (h.frequency === 'windowed') return !h.covered && h.canComplete;
+      return h.nextDeadline <= today && h.canComplete;
     })
     .filter(h => freqFilter === 'all' || h.frequency === freqFilter)
     .sort((a, b) => {
@@ -465,6 +467,24 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
             {cheersToday.length === 1
               ? 'A party member rallied behind you today, restoring your vigour.'
               : `${cheersToday.length} allies rallied behind you today, restoring your vigour.`}
+          </div>
+        </div>
+      )}
+      {reward?.available && (
+        <div onClick={() => setRewardOpen(true)} style={{
+          border: '2px solid var(--color-border-glow)',
+          background: 'linear-gradient(135deg, #1c1408 0%, #2a1e08 50%, #1c1408 100%)',
+          boxShadow: '0 0 18px rgba(240,192,64,0.25), inset 0 1px 0 var(--color-border-hi)',
+          padding: '10px 16px',
+          marginBottom: '14px',
+          textAlign: 'center',
+          cursor: 'pointer',
+        }}>
+          <div style={{ fontFamily: "'Cinzel', serif", fontSize: '0.8rem', color: 'var(--color-border-glow)', letterSpacing: '0.15em' }}>
+            ⚜ &nbsp; WEEKLY BOUNTY READY &nbsp; ⚜
+          </div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
+            Claim your reward for the tasks you completed this week.
           </div>
         </div>
       )}
@@ -623,15 +643,6 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
                 >
                   {reward.weekCount}
                 </span>
-              )}
-              {reward?.available && (
-                <button
-                  className="bevel-btn"
-                  style={{ padding: '5px 12px', fontSize: '0.72rem', color: 'var(--color-gold)' }}
-                  onClick={() => setRewardOpen(true)}
-                >
-                  ⚜ CLAIM
-                </button>
               )}
             </span>
           </SectionHeader>
