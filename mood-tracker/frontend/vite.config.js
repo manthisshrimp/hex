@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'Mood Tracker',
         short_name: 'Mood',
-        description: 'Track your mood and energy levels',
+        description: 'Track your feelings, mood and drive',
         theme_color: '#0f0f13',
         background_color: '#0f0f13',
         display: 'standalone',
@@ -44,9 +44,11 @@ export default defineConfig({
     host: true,
     port: 5178,
     proxy: {
-      '/api': {
+      // app calls /mood/api/* (prod nginx strips the prefix); dev proxy must too
+      '/mood/api': {
         target: 'http://backend:3000',
         changeOrigin: true,
+        rewrite: p => p.replace(/^\/mood/, ''),
       },
     },
   },

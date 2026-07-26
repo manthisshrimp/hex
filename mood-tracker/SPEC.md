@@ -2,7 +2,7 @@
 
 ## Overview
 
-A minimal mobile-first app for recording mood and energy/motivation levels throughout the day. The defining principle is **zero friction** — a single tap records an event with no forms, no confirmations, no loading spinners in the way.
+A minimal mobile-first app for recording feelings, mood and drive throughout the day. The defining principle is **zero friction** — a single tap records an event with no forms, no confirmations, no loading spinners in the way.
 
 ---
 
@@ -26,44 +26,25 @@ The only screen needed for day-to-day use.
 ┌──────────────────────────────┐
 │         how are you?         │
 │                              │
-│  MOOD                        │
-│  ○ irritable  ○ angry        │
-│  ○ anxious    ○ depressed    │
-│  ○ stressed                  │
-│                              │
-│  ENERGY                      │
-│  ● ● ● ● ● ● ●               │
-│  1   2   3   4   5   6   7   │
-│  can't            do all     │
-│  get up           the stuff  │
+│  FEELING       MOOD   DRIVE  │
+│  ○ angry        ●       ●    │
+│  ○ irritable    ●       ●    │
+│  ○ stressed     ●       ●    │
+│  ○ anxious      ●       ●    │
+│  ○ …            ●       ●    │
+│                 ●       ●    │
+│                 ●       ●    │
 │                              │
 │  [  History  ]               │
 └──────────────────────────────┘
 ```
 
-**Mood circles** — 5 circles in a 2-column wrap layout, each showing a large emoji icon with a text label below:
+**Feeling circles** — a vertical list, each showing an emoji icon with its name alongside:
 
-| Mood | Icon |
-|------|------|
-| irritable | 😤 |
-| angry | 😡 |
-| anxious | 😰 |
-| depressed | 😞 |
-| stressed | 😫 |
+See the palette below for the full list. Tap → ripple animation + circle briefly
+fills solid → POST to backend.
 
-Each circle: ~90px, emoji icon inside, named label below, color-coded border/fill (see palette). Tap → ripple animation + circle briefly fills solid → POST to backend.
-
-**Energy circles** — 7 circles in a single horizontal row, each with an emoji icon. Short label anchors at each end: "can't get up" and "do all the stuff". Each circle uses the gradient color scale. Tap → same ripple + fill animation → POST to backend.
-
-| Level | Icon |
-|-------|------|
-| 1 | 🛌 |
-| 2 | 🐌 |
-| 3 | 🥱 |
-| 4 | 😐 |
-| 5 | 🙂 |
-| 6 | ⚡ |
-| 7 | 🚀 |
+**Mood and drive circles** — two columns of 7 circles each, headed `MOOD` and `DRIVE`. Each circle uses the gradient color scale. Tap → same ripple + fill animation → POST to backend.
 
 **History link** — a subtle text button at the bottom navigates to Screen 2.
 
@@ -82,7 +63,7 @@ A reverse-chronological list of all recorded events, lazy-loaded on scroll.
 │  │ 14:32  😤 irritable  │    │
 │  └──────────────────────┘    │
 │  ┌──────────────────────┐    │
-│  │ 11:05  ⚡ energy 6   │    │
+│  │ 11:05  😁 mood — upbeat│  │
 │  └──────────────────────┘    │
 │                              │
 │  Yesterday                   │
@@ -95,7 +76,7 @@ A reverse-chronological list of all recorded events, lazy-loaded on scroll.
 ```
 
 - Entries grouped by day with a sticky date header
-- Each entry shows: time (HH:MM), emoji icon, label (mood name or "energy N"), and a delete button (trash icon)
+- Each entry shows: time (HH:MM), emoji icon, label (feeling name, or "mood — upbeat" / "drive — empty"), and a delete button (trash icon)
 - Tapping delete removes the entry immediately (optimistic) and calls `DELETE /api/entries/:id`
 - Initial load: 30 entries
 - Scroll-triggered load: 20 more entries per page
@@ -108,8 +89,8 @@ A reverse-chronological list of all recorded events, lazy-loaded on scroll.
 ```typescript
 interface Entry {
   id: string;           // UUID
-  type: 'mood' | 'energy';
-  value: string;        // mood name (e.g. "irritable") or energy level (e.g. "4")
+  type: 'feeling' | 'mood' | 'drive';
+  value: string;        // feeling name (e.g. "irritable") or scale level "1"-"7"
   recordedAt: string;   // ISO 8601 timestamp
 }
 ```
@@ -117,8 +98,8 @@ interface Entry {
 Storage: `data/entries.jsonl` — one JSON object per line, append-only.
 
 ```jsonl
-{"id":"e-001","type":"mood","value":"anxious","recordedAt":"2026-04-11T14:32:00Z"}
-{"id":"e-002","type":"energy","value":"6","recordedAt":"2026-04-11T11:05:00Z"}
+{"id":"e-001","type":"feeling","value":"anxious","recordedAt":"2026-04-11T14:32:00Z"}
+{"id":"e-002","type":"mood","value":"6","recordedAt":"2026-04-11T11:05:00Z"}
 ```
 
 ---
@@ -137,11 +118,11 @@ Storage: `data/entries.jsonl` — one JSON object per line, append-only.
 
 Request body:
 ```json
-{ "type": "mood", "value": "anxious" }
+{ "type": "feeling", "value": "anxious" }
 ```
 or
 ```json
-{ "type": "energy", "value": "4" }
+{ "type": "drive", "value": "4" }
 ```
 
 Server sets `id` (UUID) and `recordedAt` (current UTC timestamp). Returns the full `Entry`.
@@ -155,31 +136,45 @@ Returns entries sorted newest-first. `hasMore: true` if more entries exist befor
 
 ---
 
-## Moods — Labels and Colors
+## Feelings — Labels and Colors
 
-| Mood | Color | Hex |
-|------|-------|-----|
-| irritable | Orange | `#f97316` |
-| angry | Red | `#ef4444` |
-| anxious | Sky blue | `#38bdf8` |
-| depressed | Slate | `#64748b` |
-| stressed | Purple | `#8b5cf6` |
+| Feeling | Icon | Color | Hex |
+|---------|------|-------|-----|
+| angry | 😡 | Red | `#ef4444` |
+| irritable | 😤 | Orange | `#f97316` |
+| stressed | 😫 | Purple | `#8b5cf6` |
+| anxious | 😰 | Sky blue | `#38bdf8` |
+| over-stimulated | 🤯 | Amber | `#f59e0b` |
+| under-stimulated | 😑 | Stone | `#78716c` |
+| tired | 😴 | Slate | `#64748b` |
+| sad | 😢 | Indigo | `#6366f1` |
+| lonely | 🫂 | Gray | `#94a3b8` |
 
 ---
 
-## Energy Levels — Labels and Colors
+## The Two Scales
 
-Level 4 is neutral (gray). Levels above 4 are positive (green → blue). Levels below 4 are negative (yellow → red).
+Two independent 7-point scales, recorded as separate taps.
 
-| Level | Short label | Color | Hex |
-|-------|-------------|-------|-----|
-| 1 | can't get up | Red | `#ef4444` |
-| 2 | very low | Orange | `#f97316` |
-| 3 | low | Yellow | `#eab308` |
-| 4 | neutral | Gray | `#94a3b8` |
-| 5 | good | Green | `#22c55e` |
-| 6 | energised | Teal | `#14b8a6` |
-| 7 | do all the stuff | Blue | `#3b82f6` |
+**Mood** — how good or bad you feel (valence).
+**Drive** — how much you want to do things (motivation), independent of mood.
+
+The pair is what makes the record useful: *flat mood + no drive* (depleted after a
+busy day) looks nothing like *low mood + no drive* (depressed), and the old
+single scale could not tell them apart.
+
+Level 4 is neutral (gray) on both. Above 4 is positive (green → blue), below is
+negative (yellow → red). Colors are shared between the scales.
+
+| Level | Mood | Drive | Color | Hex |
+|-------|------|-------|-------|-----|
+| 7 | 🚀 to the moon | 🔥 unstoppable | Blue | `#3b82f6` |
+| 6 | 😁 upbeat | 💪 keen | Teal | `#14b8a6` |
+| 5 | 🙂 breezy | 👍 willing | Green | `#22c55e` |
+| 4 | 😐 flat | 😐 coasting | Gray | `#94a3b8` |
+| 3 | 😔 weary | 😪 dragging | Yellow | `#eab308` |
+| 2 | 😞 shadowed | 🪫 empty | Orange | `#f97316` |
+| 1 | 🛌 buried | 🧱 immovable | Red | `#ef4444` |
 
 ---
 
@@ -201,7 +196,7 @@ Circles are rendered as outlined rings (border only, transparent fill) with the 
 
 ### No double-tap prevention
 
-The same mood/energy level can be recorded multiple times in quick succession. The history will show each tap as a separate entry. There is no cooldown or deduplication.
+The same feeling/mood/drive level can be recorded multiple times in quick succession. The history will show each tap as a separate entry. There is no cooldown or deduplication.
 
 ---
 
@@ -235,7 +230,7 @@ The same mood/energy level can be recorded multiple times in quick succession. T
 ## Out of Scope (v2)
 
 - Charts / trend visualisation
-- Combined mood + energy entry in one tap session
+- Combined feeling + mood + drive entry in one tap session
 - Notes / free text attached to an entry
 - Reminders / push notifications
 - Export

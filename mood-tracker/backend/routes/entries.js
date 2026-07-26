@@ -4,20 +4,20 @@ const storage = require('../storage');
 
 const router = express.Router();
 
-const VALID_MOODS = ['irritable', 'angry', 'anxious', 'stressed', 'understimulated', 'overstimulated', 'sad', 'lonely', 'tired'];
-const VALID_ENERGY = ['1', '2', '3', '4', '5', '6', '7'];
+const VALID_FEELINGS = ['irritable', 'angry', 'anxious', 'stressed', 'understimulated', 'overstimulated', 'sad', 'lonely', 'tired'];
+const SCALE = ['1', '2', '3', '4', '5', '6', '7'];
 
 // POST /api/entries
 router.post('/', async (req, res) => {
   const { type, value } = req.body;
-  if (type === 'mood' && !VALID_MOODS.includes(value)) {
-    return res.status(400).json({ error: 'Invalid mood value' });
+  if (!['feeling', 'mood', 'drive'].includes(type)) {
+    return res.status(400).json({ error: 'type must be feeling, mood or drive' });
   }
-  if (type === 'energy' && !VALID_ENERGY.includes(String(value))) {
-    return res.status(400).json({ error: 'Invalid energy value' });
+  if (type === 'feeling' && !VALID_FEELINGS.includes(value)) {
+    return res.status(400).json({ error: 'Invalid feeling value' });
   }
-  if (!['mood', 'energy'].includes(type)) {
-    return res.status(400).json({ error: 'type must be mood or energy' });
+  if (type !== 'feeling' && !SCALE.includes(String(value))) {
+    return res.status(400).json({ error: `Invalid ${type} value` });
   }
   const entry = {
     id: uuidv4(),

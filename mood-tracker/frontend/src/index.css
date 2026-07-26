@@ -165,33 +165,39 @@ body {
   gap: 16px;
 }
 
-.mood-column {
+.feeling-column {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.mood-list-item {
+.feeling-list-item {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.mood-list-label {
+.feeling-list-label {
   font-size: 0.95rem;
   color: #94a3b8;
   text-transform: capitalize;
   font-weight: 400;
 }
 
-.energy-column {
+.scale-column {
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: center;
   padding-top: 2px;
-  padding-right: 64px;
+}
+
+.scale-heading {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
 }
 
 /* ============================================================

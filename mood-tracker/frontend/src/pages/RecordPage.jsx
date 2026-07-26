@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { entries as entriesAPI } from '../api';
 
-const MOODS = [
+const FEELINGS = [
   { value: 'angry',           label: 'angry',           icon: '😡', color: '#ef4444' },
   { value: 'irritable',       label: 'irritable',       icon: '😤', color: '#f97316' },
   { value: 'stressed',        label: 'stressed',        icon: '😫', color: '#8b5cf6' },
@@ -13,7 +13,7 @@ const MOODS = [
   { value: 'lonely',          label: 'lonely',          icon: '🫂', color: '#94a3b8' },
 ];
 
-const ENERGY_LEVELS = [
+const MOOD_LEVELS = [
   { value: '7', icon: '🚀', color: '#3b82f6', label: 'to the moon' },
   { value: '6', icon: '😁', color: '#14b8a6', label: 'upbeat' },
   { value: '5', icon: '🙂', color: '#22c55e', label: 'breezy' },
@@ -23,31 +23,30 @@ const ENERGY_LEVELS = [
   { value: '1', icon: '🛌', color: '#ef4444', label: 'buried' },
 ];
 
-const MOOD_META = {
-  irritable:       { icon: '😤', color: '#f97316' },
-  angry:           { icon: '😡', color: '#ef4444' },
-  anxious:         { icon: '😰', color: '#38bdf8' },
-  stressed:        { icon: '😫', color: '#8b5cf6' },
-  overstimulated:  { icon: '🤯', color: '#f59e0b' },
-  understimulated: { icon: '😑', color: '#78716c' },
-  tired:           { icon: '😴', color: '#64748b' },
-  sad:             { icon: '😢', color: '#6366f1' },
-  lonely:          { icon: '🫂', color: '#94a3b8' },
-};
+const DRIVE_LEVELS = [
+  { value: '7', icon: '🔥', color: '#3b82f6', label: 'unstoppable' },
+  { value: '6', icon: '💪', color: '#14b8a6', label: 'keen' },
+  { value: '5', icon: '👍', color: '#22c55e', label: 'willing' },
+  { value: '4', icon: '😐', color: '#94a3b8', label: 'coasting' },
+  { value: '3', icon: '😪', color: '#eab308', label: 'dragging' },
+  { value: '2', icon: '🪫', color: '#f97316', label: 'empty' },
+  { value: '1', icon: '🧱', color: '#ef4444', label: 'immovable' },
+];
 
-const ENERGY_META = {
-  '1': { icon: '🛌', color: '#ef4444', label: 'buried' },
-  '2': { icon: '😞', color: '#f97316', label: 'shadowed' },
-  '3': { icon: '😔', color: '#eab308', label: 'weary' },
-  '4': { icon: '😐', color: '#94a3b8', label: 'flat' },
-  '5': { icon: '🙂', color: '#22c55e', label: 'breezy' },
-  '6': { icon: '😁', color: '#14b8a6', label: 'upbeat' },
-  '7': { icon: '🚀', color: '#3b82f6', label: 'to the moon' },
+const byValue = levels => Object.fromEntries(levels.map(l => [l.value, l]));
+const META = {
+  feeling: byValue(FEELINGS),
+  mood: byValue(MOOD_LEVELS),
+  drive: byValue(DRIVE_LEVELS),
 };
+const UNKNOWN = { icon: '❓', color: '#999', label: '?' };
 
-function getEntryMeta(entry) {
-  if (entry.type === 'mood') return MOOD_META[entry.value] || { icon: '❓', color: '#999' };
-  return ENERGY_META[entry.value] || { icon: '❓', color: '#999' };
+const getEntryMeta = entry => META[entry.type]?.[entry.value] || UNKNOWN;
+
+function getEntryLabel(entry) {
+  const meta = META[entry.type]?.[entry.value];
+  if (!meta) return `${entry.type} ${entry.value}`;
+  return entry.type === 'feeling' ? meta.label : `${entry.type} — ${meta.label}`;
 }
 
 function formatTime(iso) {
@@ -266,31 +265,34 @@ export default function RecordPage() {
       <h1 className="record-title">how are you?</h1>
 
       <div className="record-columns">
-        <div className="mood-column">
-          {MOODS.map(m => (
-            <div className="mood-list-item" key={m.value}>
+        <div className="feeling-column">
+          {FEELINGS.map(f => (
+            <div className="feeling-list-item" key={f.value}>
               <Circle
-                icon={m.icon}
-                color={m.color}
+                icon={f.icon}
+                color={f.color}
                 size="md"
-                onTap={makeTapHandler(() => entriesAPI.record({ type: 'mood', value: m.value }), m.label, m.color)}
+                onTap={makeTapHandler(() => entriesAPI.record({ type: 'feeling', value: f.value }), f.label, f.color)}
               />
-              <span className="mood-list-label">{m.label}</span>
+              <span className="feeling-list-label">{f.label}</span>
             </div>
           ))}
         </div>
 
-        <div className="energy-column">
-          {ENERGY_LEVELS.map(l => (
-            <Circle
-              key={l.value}
-              icon={l.icon}
-              color={l.color}
-              size="sm"
-              onTap={makeTapHandler(() => entriesAPI.record({ type: 'energy', value: l.value }), l.label, l.color)}
-            />
-          ))}
-        </div>
+        {[['mood', MOOD_LEVELS], ['drive', DRIVE_LEVELS]].map(([type, levels]) => (
+          <div className="scale-column" key={type}>
+            <span className="scale-heading">{type}</span>
+            {levels.map(l => (
+              <Circle
+                key={l.value}
+                icon={l.icon}
+                color={l.color}
+                size="sm"
+                onTap={makeTapHandler(() => entriesAPI.record({ type, value: l.value }), l.label, l.color)}
+              />
+            ))}
+          </div>
+        ))}
       </div>
 
       {toast && <div className="toast toast-error">{toast.msg}</div>}
@@ -348,7 +350,7 @@ export default function RecordPage() {
                 <span className="entry-time">{formatTime(entry.recordedAt)}</span>
                 <span className="entry-icon">{meta.icon}</span>
                 <span className="entry-label" style={{ color: meta.color }}>
-                  {entry.type === 'mood' ? entry.value : (ENERGY_META[entry.value]?.label ?? `spirit ${entry.value}`)}
+                  {getEntryLabel(entry)}
                 </span>
                 {entry.note && <span className="entry-note-indicator">💬</span>}
                 <button
@@ -373,9 +375,7 @@ export default function RecordPage() {
 
       {selected && (() => {
         const meta = getEntryMeta(selected);
-        const label = selected.type === 'mood'
-          ? selected.value
-          : (ENERGY_META[selected.value]?.label ?? `spirit ${selected.value}`);
+        const label = getEntryLabel(selected);
         const noteChanged = editNote.trim() !== (selected.note || '');
         return (
           <div className="note-overlay" onClick={() => setSelected(null)}>
