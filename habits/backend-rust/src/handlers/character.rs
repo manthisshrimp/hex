@@ -306,9 +306,12 @@ pub async fn get_character(
         let all_habits = state.store.habits.get_all();
         let all_completions = state.store.completions.get_all();
 
+        // Due yesterday *or earlier* — a habit that fell further behind must
+        // still be confirmable, otherwise it skips the check-in entirely and
+        // today's tick charges it with no chance to say it was done.
         let pending: Vec<CheckinHabit> = all_habits.iter()
             .filter(|h| h.active && !h.inscribed && h.id != SYSTEM_HABIT_ID)
-            .filter(|h| raw_deadlines.get(&h.id).map(|d| d == &yesterday_str).unwrap_or(false))
+            .filter(|h| raw_deadlines.get(&h.id).map(|d| d.as_str() <= yesterday_str.as_str()).unwrap_or(false))
             .filter(|h| !all_completions.iter().any(|c| {
                 c.habit_id == h.id && c.completed_at.get(..10).unwrap_or("") == yesterday_str
             }))

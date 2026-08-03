@@ -128,10 +128,22 @@ pub fn process_tick(input: TickInput) -> TickOutput {
                 // Advance deadline from the missed date (not from today). Daily
                 // habits step to their next scheduled weekday so misses land on
                 // active days; windowed advance by a full window.
-                let new_deadline = if habit.frequency == "daily" {
+                //
+                // One step is enough while the habit is ticked every day, but a
+                // deadline that fell further behind (the habit was paused, or
+                // its stored deadline predates the tick range) would land in the
+                // past again and stay one step behind forever, charging every
+                // day without ever catching up. Never advance to before the day
+                // being processed.
+                let stepped = if habit.frequency == "daily" {
                     game::next_scheduled_after(habit, deadline)
                 } else {
                     deadline + chrono::Duration::days(habit.window_days as i64)
+                };
+                let new_deadline = if habit.frequency == "daily" {
+                    stepped.max(game::next_scheduled_on_or_after(habit, date))
+                } else {
+                    stepped.max(date)
                 };
                 deadline_updates.push(DeadlineUpdate {
                     habit_id: habit.id.clone(),
@@ -382,8 +394,55 @@ mod tests {
         assert_eq!(damage_events.len(), 1);
         assert!((damage_events[0].amount - expected_damage).abs() < 1e-6,
             "expected damage {expected_damage}, got {}", damage_events[0].amount);
-        // Deadline must have advanced from the missed date.
-        assert_eq!(out.deadline_updates[0].new_deadline, date("2026-04-21"));
+        // Deadline advances from the missed date, but never to before the day
+        // being processed.
+        assert_eq!(out.deadline_updates[0].new_deadline, date("2026-04-25"));
+    }
+
+    // ── A stranded deadline catches up instead of staying in the past ────────
+
+    #[test]
+    fn miss_never_advances_deadline_into_the_past() {
+        let tick_date = date("2026-04-25");
+        let habit = make_daily_habit("h1", "Stretch", Importance::Low);
+        let mut deadlines = HashMap::new();
+        // Four days behind — one step would land on 04-22, still in the past,
+        // leaving the habit permanently a day short of catching up.
+        deadlines.insert("h1".to_string(), date("2026-04-21"));
+
+        let input = TickInput {
+            date: tick_date, habits: vec![habit], deadlines, completions: vec![],
+            current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
+            config: GameConfig::default(),
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0,
+        };
+        let out = process_tick(input);
+
+        assert_eq!(out.deadline_updates.len(), 1);
+        assert_eq!(out.deadline_updates[0].new_deadline, tick_date);
+        // Only one charge for the gap, not one per day skipped.
+        assert_eq!(
+            out.health_events.iter().filter(|e| e.event_type == "damage").count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn windowed_miss_never_advances_deadline_into_the_past() {
+        let tick_date = date("2026-04-25");
+        let habit = make_windowed_habit("h1", "Deep Clean", Importance::Medium, 7);
+        let mut deadlines = HashMap::new();
+        // Three windows behind: 04-01 + 7 = 04-08, still well in the past.
+        deadlines.insert("h1".to_string(), date("2026-04-01"));
+
+        let input = TickInput {
+            date: tick_date, habits: vec![habit], deadlines, completions: vec![],
+            current_hp: 100.0, current_gold: 0.0, current_renown: 0.0,
+            config: GameConfig::default(),
+            boss_active: false, boss_damage_multiplier: 1.0, boss_wear_per_day: 0, boss_armor: 0,
+        };
+        let out = process_tick(input);
+        assert_eq!(out.deadline_updates[0].new_deadline, tick_date);
     }
 
     // ── HP clamped to max ────────────────────────────────────────────────────
