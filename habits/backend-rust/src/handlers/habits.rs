@@ -236,8 +236,33 @@ pub async fn update_habit(
 ) -> Result<Json<Value>, AppError> {
     super::require_auth(&headers, &state).await?;
 
+    let was_active = state.store.habits.get_by_id(&id).map(|h| h.active).unwrap_or(true);
     let updated = state.store.habits.update(&id, body).await?;
+
+    // Unpausing: the deadline froze while the habit was paused, so it is now in
+    // the past and the next tick would charge miss damage for the whole pause.
+    // Start a fresh cycle from today instead.
+    if updated.active && !was_active {
+        reset_deadline_from_today(&state, &updated).await?;
+    }
+
     Ok(Json(json!(updated)))
+}
+
+/// Give `habit` a fresh cycle starting today: daily → next scheduled weekday
+/// after today; windowed → today + window_days.
+async fn reset_deadline_from_today(state: &AppState, habit: &Habit) -> Result<(), AppError> {
+    let today = game::today();
+    let new_deadline = if habit.frequency == "daily" {
+        game::next_scheduled_after(habit, today)
+    } else {
+        today + chrono::Duration::days(habit.window_days as i64)
+    };
+    state
+        .store
+        .deadlines
+        .set(&habit.id, &new_deadline.format("%Y-%m-%d").to_string())
+        .await
 }
 
 // ── DELETE /api/habits/:id ────────────────────────────────────────────────────
@@ -546,17 +571,7 @@ pub async fn restore_habit(
     state.store.habits.restore(&id).await?;
 
     // Reset deadline so the habit starts a fresh cycle from today.
-    let today = game::today();
-    let new_deadline = if habit.frequency == "daily" {
-        game::next_scheduled_after(&habit, today)
-    } else {
-        today + chrono::Duration::days(habit.window_days as i64)
-    };
-    state
-        .store
-        .deadlines
-        .set(&id, &new_deadline.format("%Y-%m-%d").to_string())
-        .await?;
+    reset_deadline_from_today(&state, &habit).await?;
 
     Ok(Json(json!({ "ok": true })))
 }
