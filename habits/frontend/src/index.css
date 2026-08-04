@@ -1145,6 +1145,17 @@ h1, h2, h3 {
 .heatmap-cell.covered.imp-medium { background-color: rgba(107, 148, 255, 0.35); }
 .heatmap-cell.covered.imp-high   { background-color: rgba(255, 255, 0, 0.35); }
 
+/* Deliberately off, not failed — hatched so it never reads as an empty day. */
+.heatmap-cell.paused {
+  background-color: var(--color-surface-mid);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0 2px,
+    var(--color-border-hi) 2px 3px
+  );
+  border-style: dashed;
+}
+
 .heatmap-cell.today-cell {
   outline: 1px solid var(--color-gold);
   outline-offset: 1px;

@@ -253,6 +253,7 @@ mod tests {
             inscribed: false,
             inscribed_at: None,
             health_removed: 0.0,
+            paused_spans: Vec::new(),
         }
     }
 
@@ -272,6 +273,7 @@ mod tests {
             inscribed: false,
             inscribed_at: None,
             health_removed: 0.0,
+            paused_spans: Vec::new(),
         }
     }
 

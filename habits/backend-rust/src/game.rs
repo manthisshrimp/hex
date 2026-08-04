@@ -171,6 +171,34 @@ pub fn daily_heal(config: &GameConfig, passive: f64, health_removed: f64) -> f64
     }
 }
 
+/// Open or close a pause span in place.
+///
+/// Pausing opens a span at `today`. Unpausing closes the open span at
+/// *yesterday*, because the habit is live again for today's tick. Pausing and
+/// unpausing on the same day therefore yields `from > to` — no tick was ever
+/// skipped, so the span is dropped rather than kept as an empty range.
+pub fn apply_pause_transition(
+    spans: &mut Vec<crate::models::PausedSpan>,
+    now_active: bool,
+    today: NaiveDate,
+) {
+    if now_active {
+        let yesterday = (today - chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+        if let Some(i) = spans.iter().rposition(|s| s.to.is_none()) {
+            if spans[i].from > yesterday {
+                spans.remove(i);
+            } else {
+                spans[i].to = Some(yesterday);
+            }
+        }
+    } else if !spans.iter().any(|s| s.to.is_none()) {
+        spans.push(crate::models::PausedSpan {
+            from: today.format("%Y-%m-%d").to_string(),
+            to: None,
+        });
+    }
+}
+
 /// Reschedule cost (gold): ceil(RESCHEDULE_COST_BASE × importance_weight × (1 + reschedules_this_cycle))
 pub fn reschedule_cost(
     config: &GameConfig,
@@ -454,6 +482,7 @@ mod tests {
             frequency: frequency.to_string(), window_days: 7, active: true, system: false,
             created_at: "2020-01-01T00:00:00Z".to_string(), position: 0, notes: None,
             show_on_days, inscribed: false, inscribed_at: None, health_removed: 0.0,
+            paused_spans: Vec::new(),
         }
     }
 
@@ -683,6 +712,44 @@ mod tests {
         assert!(windowed_covered(&comps, date("2026-07-07"), win)); // last covered day
         assert!(!windowed_covered(&comps, date("2026-07-08"), win)); // due again → lapsed
         assert!(!windowed_covered(&[], date("2026-07-08"), win)); // never completed
+    }
+
+    // ── apply_pause_transition ───────────────────────────────────────────────
+
+    #[test]
+    fn pause_span_covers_the_days_actually_off() {
+        let mut spans = Vec::new();
+
+        // Paused on the 1st, still paused: open-ended span.
+        apply_pause_transition(&mut spans, false, date("2026-08-01"));
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].from, "2026-08-01");
+        assert_eq!(spans[0].to, None);
+
+        // Pausing again while already paused must not stack a second span.
+        apply_pause_transition(&mut spans, false, date("2026-08-02"));
+        assert_eq!(spans.len(), 1);
+
+        // Unpaused on the 3rd → the 1st and 2nd were off, the 3rd is live again.
+        apply_pause_transition(&mut spans, true, date("2026-08-03"));
+        assert_eq!(spans.len(), 1);
+        assert_eq!(spans[0].to.as_deref(), Some("2026-08-02"));
+    }
+
+    #[test]
+    fn pause_and_unpause_same_day_records_nothing() {
+        let mut spans = Vec::new();
+        apply_pause_transition(&mut spans, false, date("2026-08-04"));
+        apply_pause_transition(&mut spans, true, date("2026-08-04"));
+        // No tick was skipped, so no day should render as paused — and repeated
+        // toggling must not accumulate junk.
+        assert!(spans.is_empty(), "same-day toggle left {spans:?}");
+
+        for _ in 0..5 {
+            apply_pause_transition(&mut spans, false, date("2026-08-04"));
+            apply_pause_transition(&mut spans, true, date("2026-08-04"));
+        }
+        assert!(spans.is_empty(), "toggling accumulated {spans:?}");
     }
 
     // ── daily_heal ───────────────────────────────────────────────────────────

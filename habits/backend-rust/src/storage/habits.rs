@@ -46,6 +46,7 @@ impl HabitsStore {
                 inscribed: false,
                 inscribed_at: None,
                 health_removed: 0.0,
+                paused_spans: Vec::new(),
             };
             let defaults = vec![seed];
             let content = defaults.iter()
@@ -86,6 +87,7 @@ impl HabitsStore {
                 inscribed: false,
                 inscribed_at: None,
                 health_removed: 0.0,
+                paused_spans: Vec::new(),
             };
             cache.push(habit.clone());
             habit
@@ -180,6 +182,24 @@ impl HabitsStore {
             let ci_b = indexed[swap_rank];
             cache[ci_a].position = swap_rank as u32;
             cache[ci_b].position = rank as u32;
+        }
+        self.persist().await
+    }
+
+    /// Record a pause/unpause so the battle record can tell a day taken off
+    /// from a day failed. See `game::apply_pause_transition` for the rules.
+    pub async fn record_pause_transition(
+        &self,
+        id: &str,
+        now_active: bool,
+        today: chrono::NaiveDate,
+    ) -> Result<(), AppError> {
+        {
+            let mut cache = self.cache.lock().unwrap();
+            let Some(habit) = cache.iter_mut().find(|h| h.id == id) else {
+                return Ok(());
+            };
+            crate::game::apply_pause_transition(&mut habit.paused_spans, now_active, today);
         }
         self.persist().await
     }

@@ -35,6 +35,17 @@ pub struct Habit {
     pub inscribed_at: Option<String>,   // ISO datetime when the habit was inscribed
     #[serde(default)]
     pub health_removed: f64,            // cumulative HP drained by misses; caps passive healing
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paused_spans: Vec<PausedSpan>,  // days deliberately taken off; not misses
+}
+
+/// A stretch of days the habit was paused for. Days inside a span are off by
+/// choice, so the battle record shows them as skipped rather than failed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PausedSpan {
+    pub from: String,          // YYYY-MM-DD, inclusive
+    pub to: Option<String>,    // YYYY-MM-DD, inclusive; None while still paused
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

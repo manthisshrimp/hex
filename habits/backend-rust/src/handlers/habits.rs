@@ -237,13 +237,22 @@ pub async fn update_habit(
     super::require_auth(&headers, &state).await?;
 
     let was_active = state.store.habits.get_by_id(&id).map(|h| h.active).unwrap_or(true);
-    let updated = state.store.habits.update(&id, body).await?;
+    let mut updated = state.store.habits.update(&id, body).await?;
 
-    // Unpausing: the deadline froze while the habit was paused, so it is now in
-    // the past and the next tick would charge miss damage for the whole pause.
-    // Start a fresh cycle from today instead.
-    if updated.active && !was_active {
-        reset_deadline_from_today(&state, &updated).await?;
+    if updated.active != was_active {
+        state
+            .store
+            .habits
+            .record_pause_transition(&id, updated.active, game::today())
+            .await?;
+
+        // Unpausing: the deadline froze while the habit was paused, so it is
+        // now in the past and the next tick would charge miss damage for the
+        // whole pause. Start a fresh cycle from today instead.
+        if updated.active {
+            reset_deadline_from_today(&state, &updated).await?;
+        }
+        updated = state.store.habits.get_by_id(&id).unwrap_or(updated);
     }
 
     Ok(Json(json!(updated)))

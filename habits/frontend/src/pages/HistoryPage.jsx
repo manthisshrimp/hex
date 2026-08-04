@@ -129,9 +129,10 @@ export default function HistoryPage() {
 
   const days30Set = new Set(days30);
 
-  // Only show active habits in heatmap, sorted by active days (completions + covered) ascending
+  // Active habits, plus any mid-pause — a paused habit stays on the record so
+  // the days off are visible, rather than the row vanishing until it resumes.
   const heatmapHabits = [...habits]
-    .filter(h => h.active && !h.inscribed)
+    .filter(h => !h.inscribed && (h.active || (h.pausedSpans ?? []).some(s => s.to == null)))
     .sort((a, b) => {
       const completionsA = completionsByHabit[a.id] ?? new Set();
       const completionsB = completionsByHabit[b.id] ?? new Set();
@@ -187,6 +188,10 @@ export default function HistoryPage() {
                     {days30.map(day => {
                       const filled = completionsByHabit[h.id]?.has(day) ?? false;
                       const covered = !filled && (coveredByHabit[h.id]?.has(day) ?? false);
+                      // A paused day was taken off on purpose — never a miss.
+                      const paused = !filled && !covered && (h.pausedSpans ?? []).some(
+                        s => day >= s.from && (s.to == null || day <= s.to)
+                      );
                       const isToday = day === today;
                       return (
                         <div
@@ -195,9 +200,10 @@ export default function HistoryPage() {
                             'heatmap-cell',
                             filled ? `filled ${IMP_CLASS[h.importance]}` : '',
                             covered ? `covered ${IMP_CLASS[h.importance]}` : '',
+                            paused ? 'paused' : '',
                             isToday ? 'today-cell' : '',
                           ].filter(Boolean).join(' ')}
-                          title={day}
+                          title={paused ? `${day} — paused` : day}
                         />
                       );
                     })}
