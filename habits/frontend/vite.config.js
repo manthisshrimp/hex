@@ -44,6 +44,13 @@ export default defineConfig({
     port: 5188,
     host: true,
     proxy: {
+      // api.js calls /habits/api/* — nginx strips the prefix in prod, so dev
+      // has to strip it here or every request falls through to index.html.
+      '/habits/api': {
+        target: 'http://backend:3000',
+        changeOrigin: true,
+        rewrite: p => p.replace(/^\/habits/, ''),
+      },
       '/api': { target: 'http://backend:3000', changeOrigin: true }
     }
   }

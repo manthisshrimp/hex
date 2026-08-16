@@ -1033,6 +1033,7 @@ h1, h2, h3 {
 .habit-bleed-drop { display: inline-block; width: 7px; height: 7px; background: linear-gradient(135deg, #ff4444, #991111); border-radius: 50% 0 50% 50%; transform: rotate(-45deg); box-shadow: 0 1px 3px rgba(180,0,0,0.5); }
 .dq-deadline { font-size: 0.75rem; color: var(--color-text-muted); font-style: italic; flex-shrink: 0; }
 .dq-deadline.overdue { color: var(--color-overdue); font-style: normal; font-weight: bold; }
+.dq-deadline.dq-ahead { font-style: normal; font-size: 1rem; line-height: 1; cursor: default; }
 .dq-btn { width: 100%; padding: 8px; font-size: 0.85rem; }
 .dq-done { text-align: center; color: var(--color-gold); font-family: 'Cinzel', serif; font-size: 0.8rem; }
 

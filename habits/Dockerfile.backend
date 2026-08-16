@@ -3,17 +3,19 @@ FROM rust:1.86-slim AS builder
 
 WORKDIR /app
 
-COPY backend-rust/Cargo.toml ./
+COPY backend-rust/Cargo.toml backend-rust/Cargo.lock ./
 
-# Cache dependencies with a dummy build
+# Cache dependencies with a dummy build. --locked keeps this pinned to
+# Cargo.lock; without it cargo re-resolves and pulls deps that outrun the
+# rustc version pinned above.
 RUN mkdir src && \
     echo "fn main() {}" > src/main.rs && \
-    cargo build --release && \
+    cargo build --release --locked && \
     rm -rf src
 
 COPY backend-rust/src ./src
 COPY backend-rust/items.json ./items.json
-RUN touch src/main.rs && cargo build --release
+RUN touch src/main.rs && cargo build --release --locked
 
 # Stage 2: Runtime
 FROM debian:bookworm-slim

@@ -47,7 +47,12 @@ function HpSparkline({ hpEvents }) {
 }
 
 function CompactQuestRow({ habit, completed, onComplete, completionGold }) {
-  const overdue = daysBetween(getTodayStr(), habit.nextDeadline) < 0;
+  // Windowed quests sit on the board until covered, so one can be listed while
+  // its next deadline is still ahead — mark those rather than leaving them
+  // looking identical to the quests actually due today.
+  const daysLeft = daysBetween(getTodayStr(), habit.nextDeadline);
+  const overdue = daysLeft < 0;
+  const notDue = daysLeft > 0;
   return (
     <div
         className={`dq-row stone-panel${completed ? ' dq-completed' : ''}`}
@@ -63,6 +68,11 @@ function CompactQuestRow({ habit, completed, onComplete, completionGold }) {
           {overdue && (
             <span className="dq-deadline overdue">
               {deadlineLabel(habit.nextDeadline)}
+            </span>
+          )}
+          {notDue && (
+            <span className="dq-deadline dq-ahead" title={deadlineLabel(habit.nextDeadline)}>
+              ◷
             </span>
           )}
         </div>
@@ -515,19 +525,6 @@ export default function DashboardPage({ hp, gold, refreshCharacter }) {
           <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>
             {Math.round(100 * (1 - (boss.active.quest?.hpRemaining ?? 0) / (boss.active.quest?.hpPool ?? 1)))}% felled
           </div>
-        </div>
-      )}
-      {!boss?.active && boss?.revealed?.length > 0 && (
-        <div style={{
-          border: '1px solid #5a3a10',
-          background: '#1a1008',
-          padding: '8px 16px',
-          marginBottom: '12px',
-          cursor: 'pointer',
-          fontSize: '0.78rem',
-          color: '#b07820',
-        }} onClick={() => navigate('/habits?tab=boss')}>
-          ⚠ A threat has been revealed — visit the Boss tab
         </div>
       )}
       {!boss?.active && boss?.invitations?.length > 0 && (
