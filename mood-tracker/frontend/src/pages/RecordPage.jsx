@@ -66,6 +66,58 @@ function formatDayHeader(dateStr) {
   });
 }
 
+const MONTH_LABEL = month => new Date(month + '-01T12:00:00').toLocaleDateString([], {
+  month: 'long',
+  year: 'numeric',
+});
+
+// Mood and drive share the level→colour scale, so one lookup serves both.
+const levelColor = level => META.mood[String(level)]?.color || '#1e293b';
+const levelLabel = (type, level) => META[type][String(level)]?.label ?? '—';
+
+function MonthGrid({ month, byDay }) {
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+  // Monday-first offset for the 1st of the month.
+  const lead = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7;
+
+  return (
+    <div className="cal-month">
+      <div className="cal-month-title">{MONTH_LABEL(month)}</div>
+      <div className="cal-grid">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+          <div key={i} className="cal-weekday">{d}</div>
+        ))}
+        {Array.from({ length: lead }, (_, i) => <div key={`blank-${i}`} />)}
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const dayNum = i + 1;
+          const key = `${month}-${String(dayNum).padStart(2, '0')}`;
+          const day = byDay[key];
+          const title = day
+            ? [
+                day.mood ? `mood — ${levelLabel('mood', day.mood)}` : null,
+                day.drive ? `drive — ${levelLabel('drive', day.drive)}` : null,
+              ].filter(Boolean).join(' · ')
+            : 'no entries';
+          return (
+            <div key={key} className="cal-day" title={`${key} · ${title}`}>
+              <span className="cal-day-num">{dayNum}</span>
+              <span
+                className={`cal-bar${day?.mood ? '' : ' cal-bar--empty'}`}
+                style={day?.mood ? { background: levelColor(day.mood) } : undefined}
+              />
+              <span
+                className={`cal-bar${day?.drive ? '' : ' cal-bar--empty'}`}
+                style={day?.drive ? { background: levelColor(day.drive) } : undefined}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Circle({ icon, label, color, size = 'lg', onTap }) {
   const [state, setState] = useState('idle'); // 'idle' | 'tapping' | 'failed'
 
@@ -108,6 +160,7 @@ export default function RecordPage() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [selected, setSelected] = useState(null); // entry being edited from history
   const [editNote, setEditNote] = useState('');
+  const [view, setView] = useState('list'); // 'list' | 'calendar'
   const sentinelRef = useRef(null);
   const historyLoadingRef = useRef(false);
   const historySectionRef = useRef(null);
@@ -200,24 +253,24 @@ export default function RecordPage() {
     return () => observer.disconnect();
   }, [historyLoaded, loadEntries]);
 
-  // Infinite scroll sentinel
+  // Infinite scroll sentinel. Rebuilt after every page because an observer only
+  // fires on intersection *changes*: a month grid barely grows in height, so in
+  // calendar view the sentinel can stay in view and never fire again.
+  // Re-observing an already-intersecting target re-delivers the callback.
   useEffect(() => {
-    if (!sentinelRef.current) return;
+    if (!sentinelRef.current || !hasMore) return;
     const observer = new IntersectionObserver(
       (observerEntries) => {
-        if (observerEntries[0].isIntersecting && hasMore && !historyLoadingRef.current) {
-          setAllEntries(prev => {
-            const oldest = prev[prev.length - 1];
-            if (oldest) loadEntries(oldest.recordedAt);
-            return prev;
-          });
+        if (observerEntries[0].isIntersecting && !historyLoadingRef.current) {
+          const oldest = allEntries[allEntries.length - 1];
+          if (oldest) loadEntries(oldest.recordedAt);
         }
       },
       { rootMargin: '100px' }
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loadEntries]);
+  }, [hasMore, loadEntries, allEntries]);
 
   const grouped = useMemo(() => {
     const groups = [];
@@ -231,6 +284,32 @@ export default function RecordPage() {
       groups.push({ type: 'entry', entry });
     }
     return groups;
+  }, [allEntries]);
+
+  // Day → rounded mean mood/drive level, for the calendar view. Built from the
+  // same paged `allEntries`, so scrolling further back fills in more days.
+  const byDay = useMemo(() => {
+    const buckets = {};
+    for (const entry of allEntries) {
+      if (entry.type !== 'mood' && entry.type !== 'drive') continue;
+      const day = entry.recordedAt.slice(0, 10);
+      buckets[day] ??= { mood: [], drive: [] };
+      buckets[day][entry.type].push(Number(entry.value));
+    }
+    const mean = xs => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null;
+    return Object.fromEntries(
+      Object.entries(buckets).map(([day, v]) => [day, { mood: mean(v.mood), drive: mean(v.drive) }])
+    );
+  }, [allEntries]);
+
+  // Months present in what's loaded, newest first (allEntries is newest-first).
+  const months = useMemo(() => {
+    const seen = [];
+    for (const entry of allEntries) {
+      const month = entry.recordedAt.slice(0, 7);
+      if (!seen.includes(month)) seen.push(month);
+    }
+    return seen;
   }, [allEntries]);
 
   function openDetail(entry) {
@@ -333,9 +412,32 @@ export default function RecordPage() {
       )}
 
       <div ref={historySectionRef} className="inline-history">
-        <div className="inline-history-heading">history</div>
+        <div className="inline-history-heading">
+          <span>history</span>
+          <div className="view-toggle">
+            {['list', 'calendar'].map(v => (
+              <button
+                key={v}
+                className={`view-toggle-btn${view === v ? ' active' : ''}`}
+                onClick={() => setView(v)}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+        {view === 'calendar' && (
+          <div className="cal-legend">
+            <span className="cal-legend-swatch" /> mood (top) &nbsp;·&nbsp;
+            <span className="cal-legend-swatch" /> drive (bottom)
+          </div>
+        )}
         <div className="history-list">
-          {grouped.map(item => {
+          {view === 'calendar' && months.map(month => (
+            <MonthGrid key={month} month={month} byDay={byDay} />
+          ))}
+
+          {view === 'list' && grouped.map(item => {
             if (item.type === 'header') {
               return (
                 <div key={item.id} className="day-header">
