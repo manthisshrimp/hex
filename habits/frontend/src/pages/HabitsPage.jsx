@@ -48,6 +48,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
   const [error, setError] = useState(null);
   const [completedIds, setCompletedIds] = useState(new Set());
   const [freqFilter, setFreqFilter] = useState('all');
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState(null);
@@ -107,6 +108,19 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
       await loadHabits();
     } catch {
       // ignore
+    }
+  }, [loadHabits]);
+
+  // ponytail: sequential PUTs — a handful of habits, no bulk endpoint needed.
+  const handleToggleAll = useCallback(async (targets, active) => {
+    setBulkBusy(true);
+    try {
+      for (const h of targets) {
+        await updateHabit(h.id, { active });
+      }
+      await loadHabits();
+    } finally {
+      setBulkBusy(false);
     }
   }, [loadHabits]);
 
@@ -213,6 +227,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
     });
 
   const pausedHabits = habits.filter(h => !h.active && !h.inscribed);
+  const pausableHabits = activeHabits.filter(h => h.id !== SYSTEM_HABIT_ID);
   const inscribedHabits = habits.filter(h => h.inscribed).sort((a, b) => (b.inscribedAt ?? '').localeCompare(a.inscribedAt ?? ''));
 
   return (
@@ -241,6 +256,19 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
             ))}
           </div>
         </SectionHeader>
+        {(pausableHabits.length > 0 || pausedHabits.length > 0) && (
+          <button
+            className="bevel-btn add-btn"
+            disabled={bulkBusy}
+            onClick={() =>
+              pausableHabits.length > 0
+                ? handleToggleAll(pausableHabits, false)
+                : handleToggleAll(pausedHabits, true)
+            }
+          >
+            {pausableHabits.length > 0 ? 'PAUSE ALL' : 'RESUME ALL'}
+          </button>
+        )}
         <button className="bevel-btn add-btn" onClick={openAddModal}>+ ADD</button>
       </div>
 
