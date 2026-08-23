@@ -1726,6 +1726,8 @@ h1, h2, h3 {
   transition: color 0.15s;
 }
 .kebab-btn:hover { color: var(--color-text); }
+/* header kebab sits next to the frequency filter — give it breathing room */
+.page-header-row .kebab-btn { margin-left: 10px; padding: 8px 10px; }
 
 .kebab-menu {
   position: absolute;
