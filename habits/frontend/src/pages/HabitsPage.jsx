@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import HabitCard from '../components/HabitCard';
+import HabitCard, { KebabMenu } from '../components/HabitCard';
 import SectionHeader from '../components/SectionHeader';
 import ModalPanel from '../components/ModalPanel';
 import { useFloat } from '../components/FloatLayer';
@@ -256,20 +256,16 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
             ))}
           </div>
         </SectionHeader>
-        {(pausableHabits.length > 0 || pausedHabits.length > 0) && (
-          <button
-            className="bevel-btn add-btn"
-            disabled={bulkBusy}
-            onClick={() =>
-              pausableHabits.length > 0
-                ? handleToggleAll(pausableHabits, false)
-                : handleToggleAll(pausedHabits, true)
-            }
-          >
-            {pausableHabits.length > 0 ? 'PAUSE ALL' : 'RESUME ALL'}
-          </button>
-        )}
-        <button className="bevel-btn add-btn" onClick={openAddModal}>+ ADD</button>
+        <KebabMenu
+          items={[
+            { label: 'Add quest', onClick: openAddModal },
+            ...(pausableHabits.length > 0
+              ? [{ label: 'Pause all', disabled: bulkBusy, onClick: () => handleToggleAll(pausableHabits, false) }]
+              : pausedHabits.length > 0
+              ? [{ label: 'Resume all', disabled: bulkBusy, onClick: () => handleToggleAll(pausedHabits, true) }]
+              : []),
+          ]}
+        />
       </div>
 
       {activeHabits.length === 0 ? (

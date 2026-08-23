@@ -12,7 +12,7 @@ function importanceIcon(imp) {
 
 const KEBAB_CLOSE = 'kebab-close-all'
 
-function KebabMenu({ items }) {
+export function KebabMenu({ items }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef()
