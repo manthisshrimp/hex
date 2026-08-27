@@ -48,7 +48,7 @@ impl AppStore {
         let habits = HabitsStore::new(data_dir).await?;
         let completions = CompletionsStore::new(data_dir).await?;
         let events = EventsStore::new(data_dir).await?;
-        let character = CharacterStore::new(data_dir).await?;
+        let character = CharacterStore::new(data_dir, habits.clone()).await?;
         let deadlines = DeadlinesStore::new(data_dir).await?;
         let equipment = EquipmentStore::new(data_dir).await?;
         let random_events = RandomEventStore::new(data_dir).await?;

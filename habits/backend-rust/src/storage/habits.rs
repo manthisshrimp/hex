@@ -243,6 +243,20 @@ impl HabitsStore {
         self.persist().await
     }
 
+    /// Zero every habit's HP debt. Called when the character is back at full HP —
+    /// nothing is owed once health is whole again.
+    pub async fn clear_all_health_removed(&self) -> Result<(), AppError> {
+        let changed = {
+            let mut cache = self.cache.lock().unwrap();
+            let changed = cache.iter().any(|h| h.health_removed != 0.0);
+            for h in cache.iter_mut() {
+                h.health_removed = 0.0;
+            }
+            changed
+        };
+        if changed { self.persist().await } else { Ok(()) }
+    }
+
     /// Shift all habit `created_at` dates back by `days` days (for debug time simulation).
     pub async fn shift_created_at_back(&self, days: i64) -> Result<(), AppError> {
         use chrono::NaiveDate;
