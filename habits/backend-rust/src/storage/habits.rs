@@ -101,7 +101,16 @@ impl HabitsStore {
             let mut cache = self.cache.lock().unwrap();
             let idx = cache.iter().position(|h| h.id == id)
                 .ok_or_else(|| AppError::NotFound("Habit not found".to_string()))?;
-            if cache[idx].system {
+            // The system habit can be paused/resumed like any other, but
+            // nothing else about it is editable.
+            if cache[idx].system
+                && (req.name.is_some()
+                    || req.importance.is_some()
+                    || req.frequency.is_some()
+                    || req.window_days.is_some()
+                    || req.notes.is_some()
+                    || req.show_on_days.is_some())
+            {
                 return Err(AppError::Validation("Cannot modify system habit".to_string()));
             }
             if let Some(name) = req.name {
@@ -284,5 +293,33 @@ impl HabitsStore {
             .join("\n");
         fs::write(&self.file_path, content).await
             .map_err(|e| AppError::Storage(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_update() -> UpdateHabitRequest {
+        serde_json::from_str("{}").unwrap()
+    }
+
+    #[tokio::test]
+    async fn system_habit_pauses_but_stays_otherwise_locked() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = HabitsStore::new(dir.path().to_str().unwrap()).await.unwrap();
+
+        let mut req = empty_update();
+        req.active = Some(false);
+        let paused = store.update("system-open-app", req).await.unwrap();
+        assert!(!paused.active);
+
+        let mut req = empty_update();
+        req.active = Some(true);
+        assert!(store.update("system-open-app", req).await.unwrap().active);
+
+        let mut req = empty_update();
+        req.name = Some("Renamed".to_string());
+        assert!(store.update("system-open-app", req).await.is_err());
     }
 }

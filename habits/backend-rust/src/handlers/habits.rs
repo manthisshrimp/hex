@@ -305,9 +305,7 @@ pub async fn complete_habit(
         .get_by_id(&id)
         .ok_or_else(|| AppError::NotFound("Habit not found".to_string()))?;
 
-    if !habit.active {
-        return Err(AppError::Validation("Habit is not active".to_string()));
-    }
+    // Paused habits stay completable — a day taken off is not a day forbidden.
 
     let today = game::today();
     let today_str = game::today_str();

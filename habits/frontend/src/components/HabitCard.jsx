@@ -109,7 +109,11 @@ export default function HabitCard({
 
   const devInfoItem = { label: 'Dev Info', onClick: () => setShowDevInfo(v => !v) }
 
-  const menuItems = habit.system ? [] : habit.inscribed
+  const pauseItem = habit.active
+    ? (onPause ? [{ label: 'Pause', onClick: onPause }] : [])
+    : (onResume ? [{ label: 'Resume', onClick: onResume }] : [])
+
+  const menuItems = habit.system ? [...pauseItem, devInfoItem] : habit.inscribed
     ? [
         ...(onRestore ? [{ label: 'Restore', onClick: onRestore }] : []),
         devInfoItem,
@@ -121,12 +125,12 @@ export default function HabitCard({
         ...(onEdit  ? [{ label: 'Edit',   onClick: onEdit }]  : []),
         ...(onReschedule && rescheduleCost !== null ? [{ label: `Delay — ${rescheduleCost} ⚜`, onClick: onReschedule, disabled: currentGold < rescheduleCost }] : []),
         ...(onInscribe && consistency >= 1 ? [{ label: 'Inscribe', onClick: onInscribe }] : []),
-        ...(onPause ? [{ label: 'Pause',  onClick: onPause }] : []),
+        ...pauseItem,
         ...(onDelete ? [{ label: 'Delete', danger: true, onClick: onDelete }] : []),
         devInfoItem,
       ]
     : [
-        ...(onResume ? [{ label: 'Resume', onClick: onResume }] : []),
+        ...pauseItem,
         ...(onDelete ? [{ label: 'Delete', danger: true, onClick: onDelete }] : []),
         devInfoItem,
       ]
@@ -256,8 +260,8 @@ export default function HabitCard({
           </>
         )}
 
-        {/* Actions: active and not completed and not inscribed */}
-        {habit.active && !completed && !habit.inscribed && (
+        {/* Actions: completable (paused habits included) and not inscribed */}
+        {onComplete && !completed && !habit.inscribed && (
           <div className="habit-actions">
             <button className="bevel-btn complete-btn" onClick={handleComplete}>
               COMPLETE &nbsp;⚜ ~{fmtNum(Math.floor(completionGold ?? 0))}

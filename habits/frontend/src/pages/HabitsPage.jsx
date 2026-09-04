@@ -227,7 +227,7 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
     });
 
   const pausedHabits = habits.filter(h => !h.active && !h.inscribed);
-  const pausableHabits = activeHabits.filter(h => h.id !== SYSTEM_HABIT_ID);
+  const pausableHabits = activeHabits;
   const inscribedHabits = habits.filter(h => h.inscribed).sort((a, b) => (b.inscribedAt ?? '').localeCompare(a.inscribedAt ?? ''));
 
   return (
@@ -319,12 +319,12 @@ export default function HabitsPage({ hp, gold, refreshCharacter }) {
               currentGold={gold}
               completionGold={h.completionGold}
               passiveGold={h.passiveGold}
-              completed={false}
-              onComplete={null}
+              completed={completedIds.has(h.id)}
+              onComplete={() => handleComplete(h.id)}
               onReschedule={null}
               onEdit={null}
               onPause={null}
-              onDelete={() => handleDeleteRequest(h)}
+              onDelete={h.system ? null : () => handleDeleteRequest(h)}
               onResume={() => handleResume(h)}
               onInscribe={null}
               onRestore={null}
