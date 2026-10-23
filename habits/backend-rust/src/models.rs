@@ -173,6 +173,17 @@ pub struct CharacterResponse {
     /// Present only when yesterday's habits need confirmation before damage is applied.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pending_checkin: Option<Vec<CheckinHabit>>,
+    /// Days before yesterday that went unconfirmed (app not opened the next
+    /// morning) and were already charged by catch-up ticks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missed_days: Option<MissedDays>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MissedDays {
+    pub days: Vec<String>,
+    pub damage: f64,
 }
 
 // ── Random Events ─────────────────────────────────────────────────────────────

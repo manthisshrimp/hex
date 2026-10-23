@@ -7,7 +7,7 @@ use serde::Deserialize;
 use reqwest::Client;
 
 use crate::error::AppError;
-use crate::models::{Character, CharacterResponse, CheckinHabit, Completion, GoldEvent, Importance};
+use crate::models::{Character, CharacterResponse, CheckinHabit, Completion, MissedDays, GoldEvent, Importance};
 use crate::game::{self, SYSTEM_HABIT_ID};
 use crate::tick::{TickInput, process_tick};
 use super::AppState;
@@ -341,6 +341,7 @@ pub async fn get_character(
                 renown: character.renown,
                 name: character.name.clone(),
                 pending_checkin: Some(pending),
+                missed_days: missed_days(&state, &sys_completions, today),
             }));
         }
 
@@ -369,7 +370,36 @@ pub async fn get_character(
         renown: character.renown,
         name: character.name.clone(),
         pending_checkin: None,
+        missed_days: None,
     }))
+}
+
+/// Days from the last app-open before today up to the day before yesterday:
+/// nobody opened the app the morning after, so no check-in covered them and the
+/// catch-up ticks charged their habits as missed.
+fn missed_days(state: &AppState, sys_completions: &[Completion], today: NaiveDate) -> Option<MissedDays> {
+    let today_str = today.format("%Y-%m-%d").to_string();
+    let last_open = sys_completions.iter()
+        .filter_map(|c| c.completed_at.get(..10))
+        .filter(|d| *d < today_str.as_str())
+        .max()
+        .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())?;
+    let yesterday = today - chrono::Duration::days(1);
+    let days: Vec<String> = last_open.iter_days()
+        .take_while(|d| *d < yesterday)
+        .map(|d| d.format("%Y-%m-%d").to_string())
+        .collect();
+    if days.is_empty() {
+        return None;
+    }
+    // Damage from those days lands on the following day's tick.
+    let since = (last_open + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
+    let yesterday_str = yesterday.format("%Y-%m-%d").to_string();
+    let damage = state.store.events.health_since(&since).iter()
+        .filter(|e| e.event_type == "damage" && e.habit_id.is_some() && e.tick_date <= yesterday_str)
+        .map(|e| e.amount)
+        .sum();
+    Some(MissedDays { days, damage })
 }
 
 // ── Shared tick helper ────────────────────────────────────────────────────────
@@ -487,6 +517,7 @@ pub async fn checkin(
         renown: character.renown,
         name: character.name.clone(),
         pending_checkin: None,
+        missed_days: None,
     }))
 }
 

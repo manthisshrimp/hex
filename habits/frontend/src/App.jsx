@@ -33,6 +33,7 @@ function App() {
   const [renown, setRenown] = useState(0);
   const [characterName, setCharacterName] = useState(null);
   const [pendingCheckin, setPendingCheckin] = useState(null);
+  const [missedDays, setMissedDays] = useState(null);
   const [checkinSelected, setCheckinSelected] = useState(new Set());
   const [checkinSubmitting, setCheckinSubmitting] = useState(false);
 
@@ -71,6 +72,7 @@ function App() {
         setCharacterName(data.name ?? null);
         if (data.pendingCheckin?.length > 0) {
           setPendingCheckin(data.pendingCheckin);
+          setMissedDays(data.missedDays ?? null);
         }
       }
     } catch {
@@ -91,6 +93,7 @@ function App() {
         setRenown(data.renown ?? 0);
         setCharacterName(data.name ?? null);
         setPendingCheckin(null);
+        setMissedDays(null);
       }
     } catch {
       // auth failure handled
@@ -128,6 +131,14 @@ function App() {
               <div className="checkin-subtitle">
                 These quests were due yesterday. Mark those you completed — the rest will exact their toll.
               </div>
+              {missedDays && (
+                <div className="checkin-subtitle checkin-missed">
+                  Unconfirmed {missedDays.days.length === 1 ? 'day' : 'days'}:{' '}
+                  {missedDays.days.map(d => new Date(d + 'T12:00:00').toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })).join(', ')}
+                  {' '}— the app wasn't opened the morning after, so those quests were counted as missed
+                  {missedDays.damage > 0 && <> (♥ −{fmtNum(Math.round(missedDays.damage))})</>}.
+                </div>
+              )}
               <div className="checkin-habit-list">
                 {pendingCheckin.map(habit => (
                   <label key={habit.id} className="checkin-habit-row">

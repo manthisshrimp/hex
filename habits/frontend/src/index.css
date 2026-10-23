@@ -1842,6 +1842,11 @@ h1, h2, h3 {
   line-height: 1.5;
 }
 
+.checkin-missed {
+  color: #e05555;
+  margin-top: -12px;
+}
+
 .checkin-habit-list {
   display: flex;
   flex-direction: column;
