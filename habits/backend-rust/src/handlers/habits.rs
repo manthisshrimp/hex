@@ -236,8 +236,20 @@ pub async fn update_habit(
 ) -> Result<Json<Value>, AppError> {
     super::require_auth(&headers, &state).await?;
 
-    let was_active = state.store.habits.get_by_id(&id).map(|h| h.active).unwrap_or(true);
+    let before = state.store.habits.get_by_id(&id);
+    let was_active = before.as_ref().map(|h| h.active).unwrap_or(true);
     let mut updated = state.store.habits.update(&id, body).await?;
+
+    // Schedule edited on an active habit: the stored deadline was computed
+    // from the old schedule, so re-derive it or the change waits a full cycle.
+    if let Some(old) = before.filter(|h| h.active && updated.active) {
+        if old.frequency != updated.frequency
+            || old.window_days != updated.window_days
+            || old.show_on_days != updated.show_on_days
+        {
+            rederive_deadline(&state, &old, &updated).await?;
+        }
+    }
 
     if updated.active != was_active {
         state
@@ -256,6 +268,41 @@ pub async fn update_habit(
     }
 
     Ok(Json(json!(updated)))
+}
+
+/// Recompute the deadline after a schedule edit, keeping the current cycle's
+/// progress: daily → next scheduled day from today (after today if already
+/// done today); windowed → current cycle start + new window, never before today.
+async fn rederive_deadline(state: &AppState, old: &Habit, habit: &Habit) -> Result<(), AppError> {
+    let today = game::today();
+    let new_deadline = if habit.frequency == "daily" {
+        let today_str = game::today_str();
+        let done_today = state
+            .store
+            .completions
+            .get_for_habit(&habit.id)
+            .iter()
+            .any(|c| c.completed_at.get(..10) == Some(today_str.as_str()));
+        if done_today {
+            game::next_scheduled_after(habit, today)
+        } else {
+            game::next_scheduled_on_or_after(habit, today)
+        }
+    } else {
+        let old_deadline = state
+            .store
+            .deadlines
+            .get(&habit.id)
+            .and_then(|d| NaiveDate::parse_from_str(&d, "%Y-%m-%d").ok())
+            .unwrap_or(today);
+        let cycle_start = old_deadline - chrono::Duration::days(old.window_days as i64);
+        (cycle_start + chrono::Duration::days(habit.window_days as i64)).max(today)
+    };
+    state
+        .store
+        .deadlines
+        .set(&habit.id, &new_deadline.format("%Y-%m-%d").to_string())
+        .await
 }
 
 /// Give `habit` a fresh cycle starting today: daily → next scheduled weekday
