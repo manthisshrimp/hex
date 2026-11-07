@@ -211,16 +211,7 @@ pub async fn create_habit(
     // Set initial deadline.
     let today = game::today();
 
-    let initial_deadline = if freq == "windowed" {
-        (today + chrono::Duration::days(window_days as i64))
-            .format("%Y-%m-%d")
-            .to_string()
-    } else {
-        // First scheduled weekday on/after today (today itself for an all-days daily).
-        game::next_scheduled_on_or_after(&habit, today)
-            .format("%Y-%m-%d")
-            .to_string()
-    };
+    let initial_deadline = game::first_deadline(&habit, today).format("%Y-%m-%d").to_string();
     state.store.deadlines.set(&habit.id, &initial_deadline).await?;
 
     Ok((StatusCode::CREATED, Json(json!(habit))))
@@ -284,9 +275,9 @@ async fn rederive_deadline(state: &AppState, old: &Habit, habit: &Habit) -> Resu
             .iter()
             .any(|c| c.completed_at.get(..10) == Some(today_str.as_str()));
         if done_today {
-            game::next_scheduled_after(habit, today)
+            game::deadline_after_done(habit, today)
         } else {
-            game::next_scheduled_on_or_after(habit, today)
+            game::first_deadline(habit, today)
         }
     } else {
         let old_deadline = state
@@ -309,11 +300,7 @@ async fn rederive_deadline(state: &AppState, old: &Habit, habit: &Habit) -> Resu
 /// after today; windowed → today + window_days.
 async fn reset_deadline_from_today(state: &AppState, habit: &Habit) -> Result<(), AppError> {
     let today = game::today();
-    let new_deadline = if habit.frequency == "daily" {
-        game::next_scheduled_after(habit, today)
-    } else {
-        today + chrono::Duration::days(habit.window_days as i64)
-    };
+    let new_deadline = game::deadline_after_done(habit, today);
     state
         .store
         .deadlines
@@ -403,11 +390,7 @@ pub async fn complete_habit(
 
     // Advance deadline: daily → next scheduled weekday after today; windowed →
     // completion_date + window_days.
-    let new_deadline = if habit.frequency == "daily" {
-        game::next_scheduled_after(&habit, today)
-    } else {
-        today + chrono::Duration::days(habit.window_days as i64)
-    };
+    let new_deadline = game::deadline_after_done(&habit, today);
     state
         .store
         .deadlines

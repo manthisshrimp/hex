@@ -214,11 +214,7 @@ pub async fn get_character(
         for habit in &active_habits {
             if state.store.deadlines.get(&habit.id).is_none() {
                 let created_date = game::parse_iso_date(&habit.created_at).unwrap_or(today);
-                let initial_deadline = if habit.frequency == "windowed" {
-                    created_date + chrono::Duration::days(habit.window_days as i64)
-                } else {
-                    game::next_scheduled_on_or_after(habit, created_date)
-                };
+                let initial_deadline = game::first_deadline(habit, created_date);
                 state.store.deadlines.set(
                     &habit.id,
                     &initial_deadline.format("%Y-%m-%d").to_string(),
@@ -311,7 +307,9 @@ pub async fn get_character(
         // today's tick charges it with no chance to say it was done.
         let pending: Vec<CheckinHabit> = all_habits.iter()
             .filter(|h| h.active && !h.inscribed && h.id != SYSTEM_HABIT_ID)
-            .filter(|h| raw_deadlines.get(&h.id).map(|d| d.as_str() <= yesterday_str.as_str()).unwrap_or(false))
+            .filter(|h| raw_deadlines.get(&h.id)
+                .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
+                .is_some_and(|d| game::awaits_checkin(h, d, yesterday)))
             .filter(|h| !all_completions.iter().any(|c| {
                 c.habit_id == h.id && c.completed_at.get(..10).unwrap_or("") == yesterday_str
             }))
@@ -484,11 +482,7 @@ pub async fn checkin(
             // Advance the deadline: daily → next scheduled weekday after yesterday;
             // windowed → yesterday + window_days.
             if let Some(habit) = state.store.habits.get_all().iter().find(|h| &h.id == id).cloned() {
-                let new_deadline = if habit.frequency == "daily" {
-                    game::next_scheduled_after(&habit, yesterday)
-                } else {
-                    yesterday + chrono::Duration::days(habit.window_days as i64)
-                };
+                let new_deadline = game::deadline_after_done(&habit, yesterday);
                 state.store.deadlines.set(id, &new_deadline.format("%Y-%m-%d").to_string()).await?;
             }
         }

@@ -406,6 +406,41 @@ pub fn next_scheduled_after(habit: &crate::models::Habit, from: NaiveDate) -> Na
     next_scheduled_on_or_after(habit, from + chrono::Duration::days(1))
 }
 
+// ── Deadline rules ────────────────────────────────────────────────────────────
+// Single source for "when is this habit next due". Every handler that sets a
+// deadline goes through these; don't re-branch on `frequency` at call sites.
+
+/// First deadline of a fresh cycle starting on `from` (habit created, deadline
+/// missing, not yet done today): daily → first scheduled day on/after `from`;
+/// windowed → `from + window_days`.
+pub fn first_deadline(habit: &Habit, from: NaiveDate) -> NaiveDate {
+    if habit.frequency == "daily" {
+        next_scheduled_on_or_after(habit, from)
+    } else {
+        from + chrono::Duration::days(habit.window_days as i64)
+    }
+}
+
+/// Deadline after the habit is done (or reset) on `day`: daily → next scheduled
+/// day strictly after `day`; windowed → `day + window_days`.
+pub fn deadline_after_done(habit: &Habit, day: NaiveDate) -> NaiveDate {
+    if habit.frequency == "daily" {
+        next_scheduled_after(habit, day)
+    } else {
+        day + chrono::Duration::days(habit.window_days as i64)
+    }
+}
+
+/// Should the morning check-in ask "did you do this yesterday?" A habit whose
+/// deadline is yesterday or earlier is outstanding — but a weekday-scheduled
+/// daily habit is only asked about the morning after one of its days. Off-day
+/// ticks leave its deadline parked on the missed day, so without this gate it
+/// would be asked about every off-day (and a "yes" would log a completion on a
+/// day it isn't scheduled).
+pub fn awaits_checkin(habit: &Habit, deadline: NaiveDate, yesterday: NaiveDate) -> bool {
+    deadline <= yesterday && (habit.frequency != "daily" || scheduled_on(habit, yesterday))
+}
+
 /// Effective boss miss multiplier after the wearer's own armor mitigates the
 /// bonus. Diminishing returns (K=100), floored at 1.0 — armor shaves the boss
 /// *bonus* only, never the base miss, and only helps the player wearing it.
@@ -517,6 +552,35 @@ mod tests {
         assert_eq!(next_scheduled_on_or_after(&mwf, date("2026-06-30")), date("2026-07-01"));
         // From Wed, strictly-after skips to Fri 2026-07-03.
         assert_eq!(next_scheduled_after(&mwf, date("2026-07-01")), date("2026-07-03"));
+    }
+
+    #[test]
+    fn deadline_rules() {
+        // Mon/Wed daily (JS getDay Mon=1, Wed=3). 2026-11-02 is a Monday.
+        let mw = sched_habit("daily", Some(vec![1, 3]));
+        let (mon, wed, thu, fri, nmon) = (date("2026-11-02"), date("2026-11-04"),
+            date("2026-11-05"), date("2026-11-06"), date("2026-11-09"));
+        assert_eq!(first_deadline(&mw, mon), mon);
+        assert_eq!(first_deadline(&mw, thu), nmon);
+        assert_eq!(deadline_after_done(&mw, mon), wed);
+        assert_eq!(deadline_after_done(&mw, wed), nmon);
+
+        // Missed Wed: asked Thu morning (yesterday = Wed) only, not on off-days.
+        assert!(awaits_checkin(&mw, wed, wed));
+        assert!(!awaits_checkin(&mw, wed, thu), "off-day yesterday: not asked");
+        assert!(!awaits_checkin(&mw, wed, fri), "off-day yesterday: not asked");
+        assert!(!awaits_checkin(&mw, nmon, wed), "not yet due");
+
+        // All-days daily: asked whenever overdue.
+        let daily = sched_habit("daily", None);
+        assert!(awaits_checkin(&daily, wed, fri));
+
+        // Windowed (window 7): fallen-behind deadlines stay confirmable.
+        let win = sched_habit("windowed", None);
+        assert_eq!(first_deadline(&win, mon), nmon);
+        assert_eq!(deadline_after_done(&win, mon), nmon);
+        assert!(awaits_checkin(&win, mon, fri));
+        assert!(!awaits_checkin(&win, nmon, fri));
     }
 
     #[test]
